@@ -12,7 +12,7 @@ public class CSharpTdsClient {
         String hostname = "localhost";
         int port = 1433;
         try ( TdsClient client = new TdsClient(hostname, port) ) {
-            client.connect("reactnonreact", "reactnonreact", "reactnonreact", "app");
+            client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
 
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
