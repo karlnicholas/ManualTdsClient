@@ -4,6 +4,7 @@ import org.tdslib.javatdslib.QueryResponse;
 import org.tdslib.javatdslib.ResultSet;
 import org.tdslib.javatdslib.TdsClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class CSharpTdsClient {
@@ -16,11 +17,11 @@ public class CSharpTdsClient {
         int port = 1433;
         try ( TdsClient client = new TdsClient(hostname, port) ) {
             client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
-            QueryResponse queryResponse = client.query("select @@version");
+            QueryResponse queryResponse = client.query("select 1; select 2;");
             for(ResultSet resultSet: queryResponse.getResultSets() ) {
                 for ( List<byte[]> byteList: resultSet.getRawRows() ) {
                     for( byte[] row: byteList) {
-                        System.out.println(new String(row));
+                        System.out.println(new String(row, StandardCharsets.UTF_16LE));
                     }
                 }
             }
