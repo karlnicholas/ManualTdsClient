@@ -19,7 +19,7 @@ public class CSharpTdsClient {
         try ( TdsClient client = new TdsClient(hostname, port) ) {
             client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
             CountDownLatch latch = new CountDownLatch(1);
-            client.queryAsync("SELECT 1").subscribe(new Flow.Subscriber<>() {
+            client.queryAsync("SELECT 1; SELECT 2;").subscribe(new Flow.Subscriber<>() {
                 private Flow.Subscription subscription;
 
                 @Override
