@@ -11,6 +11,51 @@ import java.time.LocalTime;
 import java.util.List;
 
 public class PrintColumn {
+
+  /**
+   * Converts raw bytes of a single column to a human-readable string.
+   */
+  private static String convertColumnValue(ColumnMeta col, byte[] raw) {
+    byte type = col.getDataType();
+
+    return switch (type) {
+      // Fixed-length integer types
+      case (byte) 0x7F -> String.valueOf(bytesToLong(raw));           // BIGINT
+      case (byte) 0x38 -> String.valueOf(bytesToInt(raw));            // INT
+      case (byte) 0x34 -> String.valueOf(bytesToShort(raw));          // SMALLINT
+      case (byte) 0x30 -> String.valueOf(raw[0] & 0xFF);              // TINYINT
+
+      // Floating point
+      case (byte) 0x3B -> String.valueOf(bytesToFloat(raw));          // REAL
+      case (byte) 0x3E -> String.valueOf(bytesToDouble(raw));         // FLOAT
+
+      // Date types
+      case (byte) 0x28 -> dateBytesToString(raw);                     // DATE (3 bytes)
+
+      // DATETIME2(n)
+      case (byte) 0x2A -> datetime2ToString(raw, col.getScale());
+
+      // Nullable INT family (already handled as raw bytes of correct length)
+      case (byte) 0x26 -> {
+        // length already consumed in RowTokenParser → raw is either null or 1/2/4/8 bytes
+        if (raw.length == 8) yield String.valueOf(bytesToLong(raw));
+        if (raw.length == 4) yield String.valueOf(bytesToInt(raw));
+        if (raw.length == 2) yield String.valueOf(bytesToShort(raw));
+        if (raw.length == 1) yield String.valueOf(raw[0] & 0xFF);
+        yield "ERR: bad intn length " + raw.length;
+      }
+
+      // Character types (NVARCHAR most common in your table)
+      case (byte) 0xE7, (byte) 0xEF, (byte) 0x27, (byte) 0x2F -> {
+        // Assuming UTF-16LE for NVARCHAR/NCHAR
+        yield new String(raw, StandardCharsets.UTF_16LE).trim();
+      }
+
+      default -> "Unsupported type 0x" + Integer.toHexString(type & 0xFF) +
+          " (" + raw.length + " bytes)";
+    };
+  }
+
   /**
    * Very basic string representation of DATETIME2 bytes
    * (real production code should fully parse days + time ticks)
@@ -72,50 +117,6 @@ public class PrintColumn {
     }
 
     return sb.toString();
-  }
-
-  /**
-   * Converts raw bytes of a single column to a human-readable string.
-   */
-  private static String convertColumnValue(ColumnMeta col, byte[] raw) {
-    byte type = col.getDataType();
-
-    return switch (type) {
-      // Fixed-length integer types
-      case (byte) 0x7F -> String.valueOf(bytesToLong(raw));           // BIGINT
-      case (byte) 0x38 -> String.valueOf(bytesToInt(raw));            // INT
-      case (byte) 0x34 -> String.valueOf(bytesToShort(raw));          // SMALLINT
-      case (byte) 0x30 -> String.valueOf(raw[0] & 0xFF);              // TINYINT
-
-      // Floating point
-      case (byte) 0x3B -> String.valueOf(bytesToFloat(raw));          // REAL
-      case (byte) 0x3E -> String.valueOf(bytesToDouble(raw));         // FLOAT
-
-      // Date types
-      case (byte) 0x28 -> dateBytesToString(raw);                     // DATE (3 bytes)
-
-      // DATETIME2(n)
-      case (byte) 0x2A -> datetime2ToString(raw, col.getScale());
-
-      // Nullable INT family (already handled as raw bytes of correct length)
-      case (byte) 0x26 -> {
-        // length already consumed in RowTokenParser → raw is either null or 1/2/4/8 bytes
-        if (raw.length == 8) yield String.valueOf(bytesToLong(raw));
-        if (raw.length == 4) yield String.valueOf(bytesToInt(raw));
-        if (raw.length == 2) yield String.valueOf(bytesToShort(raw));
-        if (raw.length == 1) yield String.valueOf(raw[0] & 0xFF);
-        yield "ERR: bad intn length " + raw.length;
-      }
-
-      // Character types (NVARCHAR most common in your table)
-      case (byte) 0xE7, (byte) 0xEF, (byte) 0x27, (byte) 0x2F -> {
-        // Assuming UTF-16LE for NVARCHAR/NCHAR
-        yield new String(raw, StandardCharsets.UTF_16LE).trim();
-      }
-
-      default -> "Unsupported type 0x" + Integer.toHexString(type & 0xFF) +
-          " (" + raw.length + " bytes)";
-    };
   }
 
 /* ────────────────────────────────────────────────
