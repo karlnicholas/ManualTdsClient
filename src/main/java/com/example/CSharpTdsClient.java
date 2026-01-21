@@ -1,5 +1,6 @@
 package com.example;
 
+import org.tdslib.javatdslib.RpcPacketBuilder;
 import org.tdslib.javatdslib.RowWithMetadata;
 import org.tdslib.javatdslib.TdsClient;
 import org.tdslib.javatdslib.tokens.colmetadata.ColumnMeta;
@@ -60,10 +61,13 @@ public class CSharpTdsClient {
                     ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
                 """;
             queryAsync(sql, client);
-            sql =
-                "select * from dbo.users";
+            sql = "select * from dbo.users";
             queryAsync(sql, client);
+            //
 
+            ByteBuffer rpcBuffer = new RpcPacketBuilder().buildRpcPayload(
+        "Michael", "Brown", "mb@m.com", 12);
+            client.rpcAsync(rpcBuffer);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
