@@ -1,17 +1,9 @@
 package com.example;
 
-import org.tdslib.javatdslib.RpcPacketBuilder;
 import org.tdslib.javatdslib.RowWithMetadata;
 import org.tdslib.javatdslib.TdsClient;
-import org.tdslib.javatdslib.tokens.colmetadata.ColumnMeta;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 
@@ -65,11 +57,8 @@ public class CSharpTdsClient {
             queryAsync(sql, client);
             //
 
-            ByteBuffer rpcBuffer = new RpcPacketBuilder().buildRpcPayload(
-        "Michael", "Brown", "mb@m.com", 12);
-            client.rpcAsync(rpcBuffer);
-
-            Thread.sleep(10000);
+            sql = "select * from dbo.users";
+            queryRpcAsync(sql, client);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
@@ -106,5 +95,36 @@ public class CSharpTdsClient {
         latch.await();
     }
 
+    private void queryRpcAsync(String sql, TdsClient client) throws IOException, InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        client.queryRpc(sql).execute(client).subscribe(new Flow.Subscriber<>() {
+            private Flow.Subscription subscription;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+                this.subscription = subscription;
+                subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(RowWithMetadata item) {
+                System.out.print(PrintColumn.convertRowToString(item));
+                System.out.println();
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                throwable.printStackTrace();
+                latch.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+                System.out.println("Query complete");
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
 }
 
