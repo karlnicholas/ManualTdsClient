@@ -68,6 +68,8 @@ public class CSharpTdsClient {
             ByteBuffer rpcBuffer = new RpcPacketBuilder().buildRpcPayload(
         "Michael", "Brown", "mb@m.com", 12);
             client.rpcAsync(rpcBuffer);
+
+            Thread.sleep(10000);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
