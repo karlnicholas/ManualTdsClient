@@ -2,6 +2,7 @@ package com.example;
 
 import org.tdslib.javatdslib.RowWithMetadata;
 import org.tdslib.javatdslib.TdsClient;
+import org.tdslib.javatdslib.query.rpc.PreparedRpcQuery;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -57,8 +58,14 @@ public class CSharpTdsClient {
             queryAsync(sql, client);
             //
 
-            sql = "select * from dbo.users";
-            queryRpcAsync(sql, client);
+            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
+            PreparedRpcQuery prp = client.queryRpc(sql)
+                    .bindString("@p1", "Emma")
+                    .bindString("@p2", "Rodriguez")
+                    .bindString("@p3", "er@em.com")
+                    .bindLong("@p4", 42L);
+
+            queryRpcAsync(prp, client);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
@@ -95,9 +102,9 @@ public class CSharpTdsClient {
         latch.await();
     }
 
-    private void queryRpcAsync(String sql, TdsClient client) throws IOException, InterruptedException {
+    private void queryRpcAsync(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        client.queryRpc(sql).execute(client).subscribe(new Flow.Subscriber<>() {
+        prp.execute(client).subscribe(new Flow.Subscriber<>() {
             private Flow.Subscription subscription;
 
             @Override
