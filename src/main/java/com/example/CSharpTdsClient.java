@@ -5,6 +5,7 @@ import org.tdslib.javatdslib.TdsClient;
 import org.tdslib.javatdslib.query.rpc.PreparedRpcQuery;
 
 import java.io.IOException;
+import java.sql.Types;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 
@@ -60,19 +61,21 @@ public class CSharpTdsClient {
 
             sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
             PreparedRpcQuery prp = client.queryRpc(sql)
-                    .bindString("@p1", "Michael")
-                    .bindString("@p2", "Thomas")
-                    .bindString("@p3", "mt@mt.com")
-                    .bindLong("@p4", 12L);
+                    .bind("@p1", "Michael")
+                    .bind("@p2", "Thomas")
+                    .bind("@p3", "mt@mt.com")
+                    .bind("@p4", 12L);
 
             rpcAsyncUpdate(prp, client);
 
+//            sql = """
+//                SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+//                """;
             sql = """
-                SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+                SELECT * FROM dbo.users WHERE postCount > @p1
                 """;
             prp = client.queryRpc(sql)
-                .bindLong("@p1", 100L);
-
+                .bind("@p1", 100L);
             rpcAsyncQuery(prp, client);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
