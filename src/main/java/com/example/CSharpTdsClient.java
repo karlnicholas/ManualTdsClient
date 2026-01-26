@@ -37,7 +37,7 @@ public class CSharpTdsClient {
                     CONSTRAINT UIX_users_email  UNIQUE          (email)
                 );
                 """;
-              queryAsync(sql, client);
+            asyncQuery(sql, client);
             sql = """
                 INSERT INTO dbo.users 
                     (firstName, lastName, email, dateJoined, postCount, createdAt)
@@ -53,24 +53,32 @@ public class CSharpTdsClient {
                     ('Ava',      'Johnson',   'ava.j.creative@outlook.com',    '2023-07-28', 534,  '2023-07-28T22:30:47Z'),
                     ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
                 """;
-            queryAsync(sql, client);
+            asyncQuery(sql, client);
             sql = "select * from dbo.users";
-            queryAsync(sql, client);
+            asyncQuery(sql, client);
             //
 
             sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
             PreparedRpcQuery prp = client.queryRpc(sql)
-                    .bindString("@p1", "Emma")
-                    .bindString("@p2", "Rodriguez")
-                    .bindString("@p3", "er@em.com")
-                    .bindLong("@p4", 42L);
+                    .bindString("@p1", "Michael")
+                    .bindString("@p2", "Thomas")
+                    .bindString("@p3", "mt@mt.com")
+                    .bindLong("@p4", 12L);
 
-            queryRpcAsync(prp, client);
+            rpcAsyncUpdate(prp, client);
+
+            sql = """
+                SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+                """;
+            prp = client.queryRpc(sql)
+                .bindLong("@p1", 100L);
+
+            rpcAsyncQuery(prp, client);
         }
 // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
 
-    private void queryAsync(String sql, TdsClient client) throws IOException, InterruptedException {
+    private void asyncQuery(String sql, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         client.queryAsync(sql).subscribe(new Flow.Subscriber<>() {
             private Flow.Subscription subscription;
@@ -102,9 +110,40 @@ public class CSharpTdsClient {
         latch.await();
     }
 
-    private void queryRpcAsync(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
+    private void rpcAsyncQuery(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        prp.execute(client).subscribe(new Flow.Subscriber<>() {
+        prp.executeQuery(client).subscribe(new Flow.Subscriber<>() {
+            private Flow.Subscription subscription;
+
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+                this.subscription = subscription;
+                subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(RowWithMetadata item) {
+                System.out.print(PrintColumn.convertRowToString(item));
+                System.out.println();
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                throwable.printStackTrace();
+                latch.countDown();
+            }
+
+            @Override
+            public void onComplete() {
+                System.out.println("Query complete");
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+    private void rpcAsyncUpdate(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        prp.executeUpdate(client).subscribe(new Flow.Subscriber<>() {
             private Flow.Subscription subscription;
 
             @Override
