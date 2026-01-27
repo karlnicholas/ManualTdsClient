@@ -1,13 +1,16 @@
 package com.example;
 
-import org.tdslib.javatdslib.RowWithMetadata;
+import io.r2dbc.spi.Result;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.TdsClient;
+import org.tdslib.javatdslib.TdsResult;
 import org.tdslib.javatdslib.query.rpc.PreparedRpcQuery;
 
 import java.io.IOException;
-import java.sql.Types;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Flow;
+
 
 public class CSharpTdsClient {
     public static void main(String[] args) throws Exception {
@@ -23,7 +26,7 @@ public class CSharpTdsClient {
 //            queryAsync("SELECT @@Version", client);
             String sql = """
                 DROP TABLE IF EXISTS dbo.users;
-            
+                
                 CREATE TABLE dbo.users (
                     id          BIGINT          IDENTITY(1,1)   NOT NULL,
                     firstName   NVARCHAR(100)   NULL,
@@ -33,7 +36,7 @@ public class CSharpTdsClient {
                     postCount   BIGINT          NULL            DEFAULT 0,
                     createdAt   DATETIME2(3)    NOT NULL        DEFAULT SYSUTCDATETIME(),
                     updatedAt   DATETIME2(3)    NULL,
-            
+                
                     CONSTRAINT PK_users         PRIMARY KEY     (id),
                     CONSTRAINT UIX_users_email  UNIQUE          (email)
                 );
@@ -55,18 +58,18 @@ public class CSharpTdsClient {
                     ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
                 """;
             asyncQuery(sql, client);
-            sql = "select * from dbo.users";
-            asyncQuery(sql, client);
+//            sql = "select * from dbo.users";
+//            asyncQuery(sql, client);
             //
 
-            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
-            PreparedRpcQuery prp = client.queryRpc(sql)
-                    .bind("@p1", "Michael")
-                    .bind("@p2", "Thomas")
-                    .bind("@p3", "mt@mt.com")
-                    .bind("@p4", 12L);
-
-            rpcAsyncUpdate(prp, client);
+//            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
+//            PreparedRpcQuery prp = client.queryRpc(sql)
+//                .bind("@p1", "Michael")
+//                .bind("@p2", "Thomas")
+//                .bind("@p3", "mt@mt.com")
+//                .bind("@p4", 12L);
+//
+//            rpcAsyncUpdate(prp, client);
 
 //            sql = """
 //                SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
@@ -74,28 +77,127 @@ public class CSharpTdsClient {
             sql = """
                 SELECT * FROM dbo.users WHERE postCount > @p1
                 """;
-            prp = client.queryRpc(sql)
+            PreparedRpcQuery prp = client.queryRpc(sql)
                 .bind("@p1", 100L);
-            rpcAsyncQuery(prp, client);
+
+//            rpcAsyncQuery(prp, client);
+
+            CountDownLatch latch = new CountDownLatch(1);
+            // 1. The Source: A publisher of R2DBC Results
+            Publisher<Result> resultStream = prp.execute(client);
+
+// 2. Your Processor: Just passing the Result through
+// This gets you the Result objects
+            StupidProcessor<Result, Publisher<DbRecord>> sproc = new StupidProcessor<>(result -> {
+                // We tell the result how to turn its future rows into DbRecords
+                // THIS is where the R2DBC .map() happens!
+                return result.map((row, meta) -> new DbRecord(
+                    row.get(0, String.class),
+                    row.get(1, String.class),
+                    row.get(2, String.class),
+                    row.get(3, Long.class)
+                ));
+            });
+            // 3. The Hookup:
+            resultStream.subscribe(sproc);
+
+// 4. The Consumption:
+            sproc.subscribe(new Subscriber<Publisher<DbRecord>>() {
+                @Override
+                public void onSubscribe(Subscription s) {
+                    s.request(Long.MAX_VALUE); // Tell sproc we are ready
+                }
+
+                @Override
+                public void onNext(Publisher<DbRecord> rowPub) {
+                    // Here is the 'Result.map()' output!
+                    // We have to subscribe to THIS publisher to finally see the data.
+                    rowPub.subscribe(new Subscriber<Object>() {
+                        @Override
+                        public void onSubscribe(Subscription s) {
+                            s.request(Long.MAX_VALUE);
+                        }
+
+                        @Override
+                        public void onNext(Object item) {
+                            System.out.println("Item Class: " + item.getClass().getName());
+                            System.out.println("Item Value: " + item);
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            System.out.println("Result set finished.");
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void onComplete() {
+                    System.out.println("All results processed.");
+                    latch.countDown();
+                }
+            });
+
+            latch.await();
+
         }
-// If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
+            // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
 
     private void asyncQuery(String sql, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        client.queryAsync(sql).subscribe(new Flow.Subscriber<>() {
-            private Flow.Subscription subscription;
+        client.queryAsync(sql).subscribe(new Subscriber<>() {
+            private Subscription subscription;
 
             @Override
-            public void onSubscribe(Flow.Subscription subscription) {
+            public void onSubscribe(Subscription subscription) {
                 this.subscription = subscription;
                 subscription.request(Long.MAX_VALUE);
             }
 
+//            @Override
+//            public void onNext(Result item) {
+//                System.out.println("Item = " + item.map((row, rowMetadata) -> {
+//                    String result = row.toString() + " " + rowMetadata.toString();
+//                    return result;
+//                }));
+//            }
             @Override
-            public void onNext(RowWithMetadata item) {
-                System.out.print(PrintColumn.convertRowToString(item));
-                System.out.println();
+            public void onNext(Result item) {
+                // Calling .map creates the Publisher.
+                // Calling .subscribe() actually executes the logic that sets activeSubscriber.
+                item.map((row, rowMetadata) -> {
+                    return "Number of metadatas" + row.getMetadata().getColumnMetadatas().size();
+                }).subscribe(new Subscriber<>() {
+                    @Override
+                    public void onSubscribe(Subscription subscription) {
+                        subscription.request(Long.MAX_VALUE);
+                    }
+
+                    @Override
+                    public void onNext(String s) {
+                        System.out.println("INNER:" + s);
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        System.out.println("INNER ERROR:" + throwable.getMessage());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        System.out.println("INNER COMPLETE:");
+                    }
+                });
             }
 
             @Override
@@ -115,19 +217,21 @@ public class CSharpTdsClient {
 
     private void rpcAsyncQuery(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        prp.executeQuery(client).subscribe(new Flow.Subscriber<>() {
-            private Flow.Subscription subscription;
+        prp.executeQuery(client).subscribe(new Subscriber<>() {
+            private Subscription subscription;
 
             @Override
-            public void onSubscribe(Flow.Subscription subscription) {
+            public void onSubscribe(Subscription subscription) {
                 this.subscription = subscription;
                 subscription.request(Long.MAX_VALUE);
             }
 
             @Override
-            public void onNext(RowWithMetadata item) {
-                System.out.print(PrintColumn.convertRowToString(item));
-                System.out.println();
+            public void onNext(Result item) {
+                System.out.println("Item = " + item.map((row, rowMetadata) -> {
+                    String result = row.toString() + " " + rowMetadata.toString();
+                    return result;
+                }));
             }
 
             @Override
@@ -146,19 +250,21 @@ public class CSharpTdsClient {
     }
     private void rpcAsyncUpdate(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        prp.executeUpdate(client).subscribe(new Flow.Subscriber<>() {
-            private Flow.Subscription subscription;
+        prp.executeUpdate(client).subscribe(new Subscriber<>() {
+            private Subscription subscription;
 
             @Override
-            public void onSubscribe(Flow.Subscription subscription) {
+            public void onSubscribe(Subscription subscription) {
                 this.subscription = subscription;
                 subscription.request(Long.MAX_VALUE);
             }
 
             @Override
-            public void onNext(RowWithMetadata item) {
-                System.out.print(PrintColumn.convertRowToString(item));
-                System.out.println();
+            public void onNext(Result item) {
+                System.out.println("Item = " + item.map((row, rowMetadata) -> {
+                    String result = row.toString() + " " + rowMetadata.toString();
+                    return result;
+                }));
             }
 
             @Override
