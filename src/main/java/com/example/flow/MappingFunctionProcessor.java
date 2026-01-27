@@ -4,11 +4,11 @@ import java.util.concurrent.Flow;
 import java.util.function.Function;
 
 // A generic version of your IncrementProcessor logic
-public class GenericMapProcessor<T, R> implements Flow.Processor<T, R> {
+public class MappingFunctionProcessor<T, R> implements Flow.Processor<T, R> {
   private final Function<? super T, ? extends R> mapper;
   private Flow.Subscriber<? super R> downstream;
 
-  public GenericMapProcessor(Function<? super T, ? extends R> mapper) {
+  public MappingFunctionProcessor(Function<? super T, ? extends R> mapper) {
     this.mapper = mapper;
   }
 

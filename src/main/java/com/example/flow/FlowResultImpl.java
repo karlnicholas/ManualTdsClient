@@ -14,7 +14,8 @@ public class FlowResultImpl implements FlowResult {
   public <T> Flow.Publisher<T> map(Function<Integer, ? extends T> mappingFunction) {
     // Return a new Publisher. When someone subscribes to THIS...
     return subscriber -> {
-      GenericMapProcessor<Integer, T> processor = new GenericMapProcessor<>(mappingFunction);
+      // create a mapping processor, give it the mapping function and the subscriber
+      MappingFunctionProcessor<Integer, T> processor = new MappingFunctionProcessor<>(mappingFunction);
       // 1. First, tell the processor who the final subscriber is
       processor.subscribe(subscriber);
       // 2. ONLY THEN, connect the processor to the data source

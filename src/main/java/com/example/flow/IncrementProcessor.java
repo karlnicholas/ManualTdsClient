@@ -5,12 +5,13 @@ import java.util.function.Function;
 
 public class IncrementProcessor implements Flow.Processor<Integer, Integer>{
   private final Flow.Publisher<Integer> upstream;
-  public IncrementProcessor(Flow.Publisher<Integer> upstream) {
+  private final Function<Integer, Integer> mapper;
+  public IncrementProcessor(Flow.Publisher<Integer> upstream,  Function<Integer, Integer> mapper) {
     this.upstream = upstream;
+    this.mapper = mapper;
   }
   private Flow.Subscriber<? super Integer> subscriber;
   private Flow.Subscription subscription;
-  Function<Integer, Integer> mapper = i -> i + 1;
 
   @Override
   public void subscribe(Flow.Subscriber<? super Integer> subscriber) {
