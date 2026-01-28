@@ -1,0 +1,86 @@
+
+
+
+public interface Publisher<T> {
+    void subscribe(Subscriber<? super T> subscriber);
+}
+
+public interface Subscriber<T> {
+    void onSubscribe(Subscription subscription);
+    void onNext(T item);
+    void onError(Throwable throwable);
+    void onComplete();
+}
+
+public interface Subscription {
+    void request(long n);    // how many more items the subscriber wants
+    void cancel();
+}
+
+========================
+
+IntPub  <-> Processor <-> Subscriber -> Subscription.
+
+Subscription.request();
+
+Processor.Publisher.request()
+IntPub.request()
+
+IntPub.onNext()
+IntPut.complete()
+
+Processor.Subscriber.onNext()
+Processor.Subscriber.complete()
+
+Subscriber.onNext()
+Subscriber.complete()
+
+================
+
+
+sequenceDiagram
+    ProcessorClient->>+FlowResultImpl: subscribe
+    FlowResultImpl->>+IntegerPublisher: onSubscribe
+    IntegerPublisher->>+MappingFunctionProcessor: onSubscribe
+    MappingFunctionProcessor->>-SystemOutSubscriber: onSubscribe
+    SystemOutSubscriber-->>+IntegerPublisher: request
+    IntegerPublisher->>-FlowResultImpl: onNext
+    FlowResultImpl->>+MappingFunctionProcessor: onNext
+    MappingFunctionProcessor-->>+SystemOutSubscriber: onNext
+
+
+sequenceDiagram
+    participant Client as ProcessorClient (run3)
+    participant RP as resultPublisher (Lambda in FlowResultImpl)
+    participant MFP as MappingFunctionProcessor
+    participant IP as IntegerPublisher
+    participant SOS as SystemOutSubscriber
+
+    Note over Client, SOS: resultPublisher.subscribe(new SystemOutSubscriber(...))
+    Client->>RP: subscribe(SystemOutSubscriber)
+    
+    Note over RP: Inside FlowResultImpl Lambda
+    RP->>MFP: new MappingFunctionProcessor(mappingFunction)
+    RP->>MFP: subscribe(SystemOutSubscriber)
+    Note right of MFP: downstream = SystemOutSubscriber
+    
+    RP->>IP: subscribe(MappingFunctionProcessor)
+    
+    Note over IP: Inside IntegerPublisher
+    IP->>MFP: onSubscribe(Subscription)
+    MFP->>SOS: onSubscribe(Subscription)
+    
+    Note over SOS: SOS requests data
+    SOS->>IP: subscription.request(Long.MAX_VALUE)
+    
+    Note over IP: Async Execution in Thread Pool
+    loop for each item in list
+        IP->>MFP: onNext(Integer)
+        Note right of MFP: mapper.apply(item)
+        MFP->>SOS: onNext(T)
+    end
+    
+    IP->>MFP: onComplete()
+    MFP->>SOS: onComplete()
+
+

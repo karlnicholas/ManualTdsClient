@@ -12,10 +12,11 @@ public class ProcessorClient {
   private void run3() throws InterruptedException {
     // instance Integer publisher
     IntegerPublisher publisher = new IntegerPublisher();
+
     // instance mapping publisher
     FlowResult flowResult = new FlowResultImpl(publisher);
     // set the mapping function, instance and retrieve the mapping publisher
-    Flow.Publisher<Integer> resultPublisher = flowResult.map(i -> i+1);
+    Flow.Publisher<Integer> resultPublisher = flowResult.map(i -> i*5);
 
     CountDownLatch latch = new CountDownLatch(1);
     Thread.sleep(500);

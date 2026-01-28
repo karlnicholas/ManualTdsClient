@@ -1,11 +1,8 @@
 package com.example;
 
-import io.r2dbc.spi.Result;
-import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.TdsClient;
-import org.tdslib.javatdslib.TdsResult;
 import org.tdslib.javatdslib.query.rpc.PreparedRpcQuery;
 
 import java.io.IOException;
@@ -84,55 +81,20 @@ public class CSharpTdsClient {
 
             CountDownLatch latch = new CountDownLatch(1);
             // 1. The Source: A publisher of R2DBC Results
-            Publisher<Result> resultStream = prp.execute(client);
-
-// 2. Your Processor: Just passing the Result through
-// This gets you the Result objects
-            StupidProcessor<Result, Publisher<DbRecord>> sproc = new StupidProcessor<>(result -> {
-                // We tell the result how to turn its future rows into DbRecords
-                // THIS is where the R2DBC .map() happens!
-                return result.map((row, meta) -> new DbRecord(
+            prp.execute(client).map((row, meta) -> new DbRecord(
                     row.get(0, String.class),
                     row.get(1, String.class),
                     row.get(2, String.class),
                     row.get(3, Long.class)
-                ));
-            });
-            // 3. The Hookup:
-            resultStream.subscribe(sproc);
-
-// 4. The Consumption:
-            sproc.subscribe(new Subscriber<Publisher<DbRecord>>() {
+                )).subscribe(new Subscriber<>() {
                 @Override
                 public void onSubscribe(Subscription s) {
                     s.request(Long.MAX_VALUE); // Tell sproc we are ready
                 }
 
                 @Override
-                public void onNext(Publisher<DbRecord> rowPub) {
-                    // Here is the 'Result.map()' output!
-                    // We have to subscribe to THIS publisher to finally see the data.
-                    rowPub.subscribe(new Subscriber<Object>() {
-                        @Override
-                        public void onSubscribe(Subscription s) {
-                            s.request(Long.MAX_VALUE);
-                        }
-
-                        @Override
-                        public void onNext(Object item) {
-                            System.out.println("Item Class: " + item.getClass().getName());
-                            System.out.println("Item Value: " + item);
-                        }
-
-                        @Override
-                        public void onError(Throwable t) {
-                        }
-
-                        @Override
-                        public void onComplete() {
-                            System.out.println("Result set finished.");
-                        }
-                    });
+                public void onNext(DbRecord dbRecord) {
+                    System.out.println(dbRecord);
                 }
 
                 @Override
@@ -155,7 +117,9 @@ public class CSharpTdsClient {
 
     private void asyncQuery(String sql, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        client.queryAsync(sql).subscribe(new Subscriber<>() {
+        client.queryAsync(sql)
+            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
             @Override
@@ -164,40 +128,9 @@ public class CSharpTdsClient {
                 subscription.request(Long.MAX_VALUE);
             }
 
-//            @Override
-//            public void onNext(Result item) {
-//                System.out.println("Item = " + item.map((row, rowMetadata) -> {
-//                    String result = row.toString() + " " + rowMetadata.toString();
-//                    return result;
-//                }));
-//            }
             @Override
-            public void onNext(Result item) {
-                // Calling .map creates the Publisher.
-                // Calling .subscribe() actually executes the logic that sets activeSubscriber.
-                item.map((row, rowMetadata) -> {
-                    return "Number of metadatas" + row.getMetadata().getColumnMetadatas().size();
-                }).subscribe(new Subscriber<>() {
-                    @Override
-                    public void onSubscribe(Subscription subscription) {
-                        subscription.request(Long.MAX_VALUE);
-                    }
-
-                    @Override
-                    public void onNext(String s) {
-                        System.out.println("INNER:" + s);
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        System.out.println("INNER ERROR:" + throwable.getMessage());
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        System.out.println("INNER COMPLETE:");
-                    }
-                });
+            public void onNext(DbRecord dbRecord) {
+                    System.out.println("INNER:" + dbRecord);
             }
 
             @Override
@@ -217,7 +150,9 @@ public class CSharpTdsClient {
 
     private void rpcAsyncQuery(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        prp.executeQuery(client).subscribe(new Subscriber<>() {
+        prp.executeQuery(client)
+            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
             @Override
@@ -227,11 +162,8 @@ public class CSharpTdsClient {
             }
 
             @Override
-            public void onNext(Result item) {
-                System.out.println("Item = " + item.map((row, rowMetadata) -> {
-                    String result = row.toString() + " " + rowMetadata.toString();
-                    return result;
-                }));
+            public void onNext(DbRecord dbRecord) {
+                System.out.println("DbRecord = " + dbRecord);
             }
 
             @Override
@@ -250,7 +182,9 @@ public class CSharpTdsClient {
     }
     private void rpcAsyncUpdate(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-        prp.executeUpdate(client).subscribe(new Subscriber<>() {
+        prp.executeUpdate(client)
+            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
             @Override
@@ -260,11 +194,8 @@ public class CSharpTdsClient {
             }
 
             @Override
-            public void onNext(Result item) {
-                System.out.println("Item = " + item.map((row, rowMetadata) -> {
-                    String result = row.toString() + " " + rowMetadata.toString();
-                    return result;
-                }));
+            public void onNext(DbRecord dbRecord) {
+                System.out.println("DbRecord = " + dbRecord);
             }
 
             @Override
