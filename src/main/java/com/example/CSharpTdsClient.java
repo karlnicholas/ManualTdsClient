@@ -1,12 +1,17 @@
 package com.example;
 
+import io.r2dbc.spi.Row;
+import io.r2dbc.spi.RowMetadata;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.TdsClient;
 import org.tdslib.javatdslib.query.rpc.PreparedRpcQuery;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.BiFunction;
 
 
 public class CSharpTdsClient {
@@ -81,12 +86,7 @@ public class CSharpTdsClient {
 
             CountDownLatch latch = new CountDownLatch(1);
             // 1. The Source: A publisher of R2DBC Results
-            prp.execute(client).map((row, meta) -> new DbRecord(
-                    row.get(0, String.class),
-                    row.get(1, String.class),
-                    row.get(2, String.class),
-                    row.get(3, Long.class)
-                )).subscribe(new Subscriber<>() {
+            prp.execute(client).map(mappingFunction).subscribe(new Subscriber<>() {
                 @Override
                 public void onSubscribe(Subscription s) {
                     s.request(Long.MAX_VALUE); // Tell sproc we are ready
@@ -115,10 +115,20 @@ public class CSharpTdsClient {
             // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
 
+    BiFunction<Row, RowMetadata, DbRecord> mappingFunction =  (row, meta) -> new DbRecord(
+        row.get(0, Long.class),
+        row.get(1, String.class),
+        row.get(2, String.class),
+        row.get(3, String.class),
+        row.get(4, LocalDate.class),
+        row.get(5, Long.class),
+        row.get(6, LocalDateTime.class),
+        row.get(7, LocalDateTime.class)
+        );
     private void asyncQuery(String sql, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         client.queryAsync(sql)
-            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .map(mappingFunction)
             .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
@@ -151,7 +161,7 @@ public class CSharpTdsClient {
     private void rpcAsyncQuery(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         prp.executeQuery(client)
-            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .map(mappingFunction)
             .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
@@ -183,7 +193,7 @@ public class CSharpTdsClient {
     private void rpcAsyncUpdate(PreparedRpcQuery prp, TdsClient client) throws IOException, InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         prp.executeUpdate(client)
-            .map((row, rowMetadata)->new DbRecord(row.get(0, String.class), row.get(1, String.class), row.get(2, String.class), row.get(3, Long.class)))
+            .map(mappingFunction)
             .subscribe(new Subscriber<>() {
             private Subscription subscription;
 
