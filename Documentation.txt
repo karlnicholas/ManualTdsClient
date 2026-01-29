@@ -1,21 +1,89 @@
 
 
 
-public interface Publisher<T> {
-    void subscribe(Subscriber<? super T> subscriber);
-}
-
-public interface Subscriber<T> {
-    void onSubscribe(Subscription subscription);
+    /**
+     * Called for each item published.
+     */
     void onNext(T item);
+
+    /**
+     * Called when an unrecoverable error occurs.
+     * No further calls will be made after this.
+     */
     void onError(Throwable throwable);
+
+    /**
+     * Called when no more items will be published.
+     * No further calls will be made after this.
+     */
     void onComplete();
 }
 
+/**
+ * Represents the relationship between a Publisher and a Subscriber.
+ * Controls demand (backpressure) and cancellation.
+ */
 public interface Subscription {
-    void request(long n);    // how many more items the subscriber wants
+    /**
+     * Request n more items from the Publisher.
+     * n must be > 0, otherwise onError may be called.
+     * To request unbounded, use Long.MAX_VALUE.
+     */
+    void request(long n);
+
+    /**
+     * Cancel the subscription. No more items will be sent.
+     */
     void cancel();
 }
+
+/**
+ * Processor = Publisher + Subscriber combined (can be used in the middle of chains)
+ */
+public interface Processor<T, R> extends Subscriber<T>, Publisher<R> {
+    // No additional methods — it's just the combination
+}
+
+
+
+
+
+Client (your code)                  Publisher                  Subscriber (your instance)
+    |                                 |                             |
+    | 1. Creates Publisher            |                             |
+    |  |                              |                             |
+    | 2. Creates Subscriber           |                             |
+    |  |                              |                             |
+    | 3. Calls publisher.subscribe(subscriber)                     |
+    |--------------------------------->                             |
+    |                                 |                             |
+    |                                 | 4. SYNCHRONOUSLY calls      |
+    |                                 |    subscriber.onSubscribe(  |
+    |                                 |        new Subscription() ) |
+    |                                 |---------------------------->|
+    |                                 |                             | 5. Receives Subscription
+    |                                 |                             |    object
+    |                                 |                             |
+    |                                 |                             | 6. Calls subscription.request(n)
+    |                                 |<----------------------------|
+    |                                 |                             |
+    |                                 | 7. Publisher's async process|
+    |                                 |    starts (e.g., background |
+    |                                 |    thread or async task)    |
+    |                                 |                             |
+    |                                 | 8. Calls subscriber.onNext(item)
+    |                                 |---------------------------->|
+    |                                 |                             | 9. Receives item
+    |                                 |                             |
+    |                                 | 10. Calls onNext again...   |
+    |                                 |---------------------------->|
+    |                                 |                             |
+    |                                 | 11. Calls subscriber.onComplete()
+    |                                 |---------------------------->|
+    |                                 |                             | 12. Stream complete
+
+
+
 
 ========================
 
