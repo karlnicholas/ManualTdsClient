@@ -27,7 +27,7 @@ public class FlowResultWrapper<T> implements Flow.Publisher<T> {
     source.subscribe(new Flow.Subscriber<FlowResult>() {
       @Override
       public void onNext(FlowResult result) {
-        // Bridge to the IntegerPublisher inside FlowResult
+        // Bridge to the ListByteArrayPublisher inside FlowResult
         result.map(mapper::apply).subscribe(subscriber);
       }
       @Override public void onSubscribe(Flow.Subscription s) { s.request(Long.MAX_VALUE); }
