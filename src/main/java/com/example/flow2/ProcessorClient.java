@@ -10,16 +10,16 @@ public class ProcessorClient {
   }
 
   private void run4() throws InterruptedException {
-    // instance Integer publisher
+    // instance Statement
     FlowStatement statement = new FlowStatementImpl();
 
     CountDownLatch latch = new CountDownLatch(1);
 
-// This matches your desired "wrapped" look
+    // This matches your desired "wrapped" look
     FlowResultWrapper<String> wrappedFlow = FlowResultWrapper.wrap(statement.execute())
             .map(i -> "Number: " + i);
 
-// Subscribing is now a one-liner
+    // Subscribing is now a one-liner
     SimpleSubscriber.subscribe(wrappedFlow,
             System.out::println,
             ()->latch.countDown(),
@@ -27,16 +27,6 @@ public class ProcessorClient {
               System.out.println("Error: " + throwable.getMessage());
               latch.countDown();}
     );
-
-    // instance mapping publisher
-//    FlowResult flowResult = new FlowResultImpl(flowStatement);
-//    // set the mapping function, instance and retrieve the mapping publisher
-//    Flow.Publisher<Integer> resultPublisher = flowResult.map(i -> i*5);
-
-
-//    Thread.sleep(500);
-    // subscribe the mapping publisher
-//    resultPublisher.subscribe(new SystemOutSubscriber(null, ()->latch.countDown()));
 
     latch.await();
   }
