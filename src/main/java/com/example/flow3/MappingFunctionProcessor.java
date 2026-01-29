@@ -1,14 +1,14 @@
-package com.example.flow2;
+package com.example.flow3;
 
 import java.util.concurrent.Flow;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 // A generic version of your IncrementProcessor logic
-public class MappingFunctionProcessor<T, R> implements Flow.Processor<T, R> {
-  private final Function<? super T, ? extends R> mapper;
+public class MappingFunctionProcessor<T extends FlowRow, R> implements Flow.Processor<T, R> {
+  private final BiFunction<T, FlowRowMetadata, ? extends R>  mapper;
   private Flow.Subscriber<? super R> downstream;
 
-  public MappingFunctionProcessor(Function<? super T, ? extends R> mapper) {
+  public MappingFunctionProcessor(BiFunction<T, FlowRowMetadata, ? extends R>  mapper) {
     this.mapper = mapper;
   }
 
@@ -23,8 +23,8 @@ public class MappingFunctionProcessor<T, R> implements Flow.Processor<T, R> {
   }
 
   @Override
-  public void onNext(T item) {
-    downstream.onNext(mapper.apply(item));
+  public void onNext(T flowRow) {
+    downstream.onNext(mapper.apply(flowRow, flowRow.getFlowRowMetadata()));
   }
 
   @Override

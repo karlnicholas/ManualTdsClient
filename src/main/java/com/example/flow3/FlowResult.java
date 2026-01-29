@@ -1,12 +1,8 @@
 package com.example.flow3;
 
 import java.util.concurrent.Flow;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 public interface FlowResult {
-
-  <T> Flow.Publisher<T> map(Function<Integer, ? extends T> mappingFunction);
-
-  <T> Flow.Publisher<T> flatMap(Function<Integer, ? extends Flow.Publisher<? extends T>> mappingFunction);
-
+  <T> Flow.Publisher<T> map(BiFunction<FlowRow, FlowRowMetadata, ? extends T> mappingFunction);
 }
