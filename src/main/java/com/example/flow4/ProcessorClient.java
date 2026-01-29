@@ -9,31 +9,34 @@ public class ProcessorClient {
   }
 
   private void run3() throws InterruptedException {
-    // instance Statement
     FlowRowPublisher source = new FlowRowPublisher();
     FlowStatement statement = new FlowStatementImpl(source);
-
     CountDownLatch latch = new CountDownLatch(1);
 
-    // This matches your desired "wrapped" look
-    FlowResultWrapper<OutRecord> wrappedFlow = FlowResultWrapper.wrap(statement.execute())
-        .map((row, rowMetadata) -> new OutRecord(
-              row.get(0, String.class),
-              row.get(1, String.class),
-              row.get(2, String.class))
-        );
+    // 1. CAPTURE the Execution (Publisher<FlowResult>)
+    // Equivalent to: Mono.from(connection.createStatement(...).execute())
+    Flow.Publisher<? extends FlowResult> execution = statement.execute();
 
-    // Subscribing is now a one-liner
+    // 2. MAP the result to your DTOs
+    // Equivalent to: rv.flatMapMany(result -> result.map(mapper))
+    FlowResultWrapper<OutRecord> wrappedFlow = FlowResultWrapper.mapFrom(execution,
+        (row, rowMetadata) -> new OutRecord(
+            row.get(0, String.class),
+            row.get(1, String.class),
+            row.get(2, String.class))
+    );
+
+    // 3. Subscribe
     SimpleSubscriber.subscribe(wrappedFlow,
         System.out::println,
-        ()->latch.countDown(),
-        throwable ->  {
+        latch::countDown,
+        throwable -> {
           System.out.println("Error: " + throwable.getMessage());
           source.cancel();
-          latch.countDown();}
+          latch.countDown();
+        }
     );
 
     latch.await();
   }
-
 }
