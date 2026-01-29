@@ -23,7 +23,8 @@ public class FlowResultWrapper<T> implements Flow.Publisher<T> {
       // 1. Get the result of the CURRENT mapper (T)
       T previousResult = this.mapper.apply(flowRow, flowRowMetadata);
       // 2. Pass T and Metadata to the NEXT mapper
-      return nextMapper.apply(previousResult, flowRowMetadata);
+      R x = nextMapper.apply(previousResult, flowRowMetadata);
+      return x;
     });
   }
 

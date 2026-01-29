@@ -24,7 +24,7 @@ public class SimpleSubscriber<T> implements Flow.Subscriber<T> {
     nextHandler.accept(item);
   }
 
-  @Override public void onError(Throwable t) { t.printStackTrace(); }
+  @Override public void onError(Throwable t) { onErrorHandler.accept(t); }
   @Override public void onComplete() {
     onCompleteHandler.run();
   }

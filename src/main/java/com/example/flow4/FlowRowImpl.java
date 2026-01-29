@@ -19,14 +19,7 @@ public class FlowRowImpl implements FlowRow {
 
   @Override
   public <T extends Object> T get(int index, Class<T> clazz) {
-    String i = Integer.valueOf(row.get(index)[0]).toString();
-    T returnValue = null;
-    try {
-      returnValue = clazz.cast(i);
-    } catch (ClassCastException e) {
-      System.out.println("ClassCastException: " + e.getMessage());
-    }
-    return returnValue;
+    return clazz.cast(Integer.valueOf(row.get(index)[0]).toString());
   }
 
   @Override

@@ -21,7 +21,7 @@ public class FlowRowMetadataImpl implements FlowRowMetadata {
         return columnMetadata;
       }
     }
-    return null;
+    throw new IllegalArgumentException("Column not found: " + name);
   }
 
   @Override
