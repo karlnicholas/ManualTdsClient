@@ -10,7 +10,8 @@ public class ProcessorClient {
 
   private void run3() throws InterruptedException {
     // instance Statement
-    FlowStatement statement = new FlowStatementImpl(new FlowRowPublisher());
+    FlowRowPublisher source = new FlowRowPublisher();
+    FlowStatement statement = new FlowStatementImpl(source);
 
     CountDownLatch latch = new CountDownLatch(1);
 
@@ -28,6 +29,7 @@ public class ProcessorClient {
         ()->latch.countDown(),
         throwable ->  {
           System.out.println("Error: " + throwable.getMessage());
+          source.cancel();
           latch.countDown();}
     );
 

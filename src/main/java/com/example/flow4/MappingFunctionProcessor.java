@@ -41,8 +41,6 @@ public class MappingFunctionProcessor<T extends FlowRow, R> implements Flow.Proc
       // This effectively "propagates" the exception to your Client
       downstream.onError(t);
 
-      // Optional: Cancel upstream if possible, though strict processors
-      // usually consider the stream dead at this point.
     }
   }
   @Override
