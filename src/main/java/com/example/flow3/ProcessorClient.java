@@ -7,7 +7,7 @@ public class ProcessorClient {
     new ProcessorClient().run3();
   }
 
-  private void run3() throws InterruptedException {
+  private void run3() {
     FlowRowPublisher source = new FlowRowPublisher();
     FlowStatement statement = new FlowStatementImpl(source);
 
