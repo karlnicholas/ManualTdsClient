@@ -33,6 +33,40 @@ public class FlowResultWrapper<T> implements Flow.Publisher<T> {
     });
   }
 
+  // 1. CONVENIENCE MAP: Accepts Function<T, R> instead of BiFunction
+  // This allows .map(i -> i)
+  public <R> FlowResultWrapper<R> map(java.util.function.Function<T, R> simpleMapper) {
+    // We simply delegate to the main map method and ignore the metadata
+    return map((item, metadata) -> simpleMapper.apply(item));
+  }
+
+  // 2. CONVENIENCE SUBSCRIBE: Accepts Consumer<T> instead of Subscriber
+  // This allows .subscribe(System.out::println)
+  public void subscribe(java.util.function.Consumer<T> consumer) {
+    // Create a default subscriber that requests everything and prints errors
+    this.subscribe(new Flow.Subscriber<T>() {
+      @Override
+      public void onSubscribe(Flow.Subscription s) {
+        s.request(Long.MAX_VALUE); // Automatically request all data
+      }
+
+      @Override
+      public void onNext(T item) {
+        consumer.accept(item); // Run the user's consumer (e.g., println)
+      }
+
+      @Override
+      public void onError(Throwable t) {
+        t.printStackTrace(); // Default error handling
+      }
+
+      @Override
+      public void onComplete() {
+        // Default: do nothing on completion
+      }
+    });
+  }
+
   @Override
   public void subscribe(Flow.Subscriber<? super T> subscriber) {
     source.subscribe(new Flow.Subscriber<FlowResult>() {
