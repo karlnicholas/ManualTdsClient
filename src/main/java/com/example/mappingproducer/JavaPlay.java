@@ -19,9 +19,9 @@ public class JavaPlay {
     MappingProducer.just(1)
         .flatMap(i -> MappingProducer.just(i + 1))
         .map(i -> i + 1)
-        .map(i -> {
-          throw new IllegalArgumentException("XXX");
-        })
+//        .map(i -> {
+//          throw new IllegalArgumentException("XXX");
+//        })
         .subscribe(
             i -> System.out.println("Value: " + i),       // onNext
             err -> System.err.println("Caught: " + err.getMessage()) // onError
