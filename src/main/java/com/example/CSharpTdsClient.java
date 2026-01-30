@@ -79,7 +79,7 @@ public class CSharpTdsClient {
             Statement statement = client.queryRpc(sql)
                 .bind("@p1", 100L);
 
-            rpcAsyncQuery(sql, client);
+            rpcAsyncQuery(statement, client);
 
 //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
@@ -113,9 +113,9 @@ public class CSharpTdsClient {
     latch.await();
   }
 
-  private void rpcAsyncQuery(String sql, TdsClient client) throws InterruptedException {
+  private void rpcAsyncQuery(Statement statement, TdsClient client) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    MappingProducer.from(client.queryAsync(sql).execute())
+    MappingProducer.from(statement.execute())
             .flatMap(result -> result.map(mapper))
             .subscribe(
                     System.out::println,
