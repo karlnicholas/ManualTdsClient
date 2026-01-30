@@ -47,11 +47,6 @@ public class FlowRowPublisher implements Flow.Publisher<FlowRow> {
             if (!isCancelled.get()) {
               subscriber.onNext(new FlowRowImpl(i, columnNames));
             }
-//            try {
-//              Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//              throw new RuntimeException(e);
-//            }
           }
 
           // 4. Only complete if we finished naturally (not cancelled)
