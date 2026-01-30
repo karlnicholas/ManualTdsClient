@@ -3,9 +3,9 @@ package com.example.flow3;
 import java.util.List;
 
 public interface FlowRowMetadata {
-  FlowColumnMetadata getFlowColumnMetadata(int var1);
+  FlowColumnMetadata getFlowColumnMetadata(int index);
 
-  FlowColumnMetadata getFlowColumnMetadata(String var1);
+  FlowColumnMetadata getFlowColumnMetadata(String name);
 
   List<? extends FlowColumnMetadata> getFlowColumnMetadatas();
 }

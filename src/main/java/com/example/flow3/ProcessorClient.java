@@ -9,29 +9,34 @@ public class ProcessorClient {
   }
 
   private void run3() throws InterruptedException {
-    // instance Integer publisher
-    FlowRowPublisher publisher = new FlowRowPublisher();
-
-    // instance mapping publisher
-    FlowResult flowResult = new FlowResultImpl(publisher);
-    // set the mapping function, instance and retrieve the mapping publisher
-//    Flow.Publisher<Integer> resultPublisher = flowResult.map(i -> i*5);
-    Flow.Publisher<OutRecord> resultPublisher = flowResult.map((row, rowMetadata) -> {
-          OutRecord outRecord= new OutRecord(
-              row.get(0, String.class),
-              row.get(1, String.class),
-              row.get(2, String.class)
-          );
-          return outRecord;
-      }
-    );
-
+    FlowRowPublisher source = new FlowRowPublisher();
+    FlowStatement statement = new FlowStatementImpl(source);
     CountDownLatch latch = new CountDownLatch(1);
 
-    // subscribe the mapping publisher
-    resultPublisher.subscribe(new SystemOutSubscriber(null, ()->latch.countDown()));
+    // 1. CAPTURE the Execution (Publisher<FlowResult>)
+    // Equivalent to: Mono.from(connection.createStatement(...).execute())
+    Flow.Publisher<? extends FlowResult> execution = statement.execute();
+
+    // 2. MAP the result to your DTOs
+    // Equivalent to: rv.flatMapMany(result -> result.map(mapper))
+    FlowResultWrapper<OutRecord> wrappedFlow = FlowResultWrapper.mapFrom(execution,
+        (row, rowMetadata) -> new OutRecord(
+            row.get(0, String.class),
+            row.get(1, String.class),
+            row.get(2, String.class))
+    );
+
+    // 3. Subscribe
+    SimpleSubscriber.subscribe(wrappedFlow,
+        System.out::println,
+        latch::countDown,
+        throwable -> {
+          System.out.println("Error: " + throwable.getMessage());
+          source.cancel();
+          latch.countDown();
+        }
+    );
 
     latch.await();
   }
-
 }

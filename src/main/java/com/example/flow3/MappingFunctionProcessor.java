@@ -24,9 +24,16 @@ public class MappingFunctionProcessor<T extends FlowRow, R> implements Flow.Proc
 
   @Override
   public void onNext(T flowRow) {
-    downstream.onNext(mapper.apply(flowRow, flowRow.getFlowRowMetadata()));
+    try {
+      // 1. Attempt the mapping (this executes your lambda)
+      // 2. If successful, pass it downstream
+      downstream.onNext(mapper.apply(flowRow, flowRow.getFlowRowMetadata()));
+    } catch (Throwable t) {
+      // 3. If the lambda throws, we MUST catch it and signal onError
+      // This effectively "propagates" the exception to your Client
+      downstream.onError(t);
+    }
   }
-
   @Override
   public void onError(Throwable throwable) {
     downstream.onError(throwable);
