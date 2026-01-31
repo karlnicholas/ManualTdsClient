@@ -1,4 +1,4 @@
-package com.example.flow3;
+package com.example.flow3.library;
 
 public interface FlowRow {
 

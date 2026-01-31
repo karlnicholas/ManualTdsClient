@@ -1,4 +1,6 @@
-package com.example.flow3;
+package com.example.flow3.client;
+
+import com.example.flow3.library.*;
 
 import java.util.function.BiFunction;
 

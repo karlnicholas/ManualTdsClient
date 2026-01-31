@@ -1,4 +1,4 @@
-package com.example.flow3;
+package com.example.flow3.client;
 
 import java.util.concurrent.Flow;
 import java.util.function.Consumer;

@@ -1,4 +1,4 @@
-package com.example.flow3;
+package com.example.flow3.library;
 
 import java.util.concurrent.Flow;
 
