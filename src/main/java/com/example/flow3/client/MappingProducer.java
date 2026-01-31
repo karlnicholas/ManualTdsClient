@@ -36,27 +36,14 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
         @Override
         public void request(long n) {
           if (n > 0 && !cancelled && executed.compareAndSet(false, true)) {
-             ExecutorService executor = Executors.newSingleThreadExecutor();
-             executor.submit(() -> {
-               if (!cancelled) {
-                 try {
-                   subscriber.onNext(value);
-                   if (!cancelled) subscriber.onComplete();
-                 } catch (Throwable t) {
-                   subscriber.onError(t);
-                 }
-               }
-               executor.shutdown();
-             });
-
             // OPTIMIZED: Synchronous emission is standard for 'just'
             // unless we strictly need to change threads (which requires a shared Scheduler).
-//            try {
-//              subscriber.onNext(value);
-//              if (!cancelled) subscriber.onComplete();
-//            } catch (Throwable t) {
-//              subscriber.onError(t);
-//            }
+            try {
+              subscriber.onNext(value);
+              if (!cancelled) subscriber.onComplete();
+            } catch (Throwable t) {
+              subscriber.onError(t);
+            }
           }
         }
 
@@ -103,6 +90,36 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
       FlatMapSubscriber<T, R> arbiter = new FlatMapSubscriber<>(downstream, mapper);
       source.subscribe(arbiter);
     });
+  }
+
+  // -----------------------------------------------------------
+  // 5. OPERATOR: FILTER (Non-Backpressure)
+  // -----------------------------------------------------------
+  public MappingProducer<T> filter(java.util.function.Predicate<T> predicate) {
+    Flow.Publisher<T> filteredSource = downstream -> source.subscribe(new Flow.Subscriber<T>() {
+      @Override
+      public void onSubscribe(Flow.Subscription s) {
+        downstream.onSubscribe(s);
+      }
+
+      @Override
+      public void onNext(T item) {
+        try {
+          if (predicate.test(item)) {
+            downstream.onNext(item);
+          }
+          // If false, we simply do nothing.
+          // We rely on the source to eventually send more items or complete.
+        } catch (Throwable t) {
+          downstream.onError(t);
+        }
+      }
+
+      @Override public void onError(Throwable t) { downstream.onError(t); }
+      @Override public void onComplete() { downstream.onComplete(); }
+    });
+
+    return new MappingProducer<>(filteredSource);
   }
 
   // Overload: Success Consumer + Error Consumer

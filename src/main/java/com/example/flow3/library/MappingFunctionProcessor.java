@@ -14,23 +14,19 @@ public class MappingFunctionProcessor<T extends FlowRow, R> implements Flow.Proc
 
   @Override
   public void subscribe(Flow.Subscriber<? super R> subscriber) {
-    System.out.println("MappingFunctionProcessor::subscribe(Flow.Subscriber<? super R> subscriber)::this.downstream = subscriber");
     this.downstream = subscriber;
   }
 
   @Override
   public void onSubscribe(Flow.Subscription subscription) {
-    System.out.println("MappingFunctionProcessor::onSubscribe::downstream.onSubscribe(subscription)");
     downstream.onSubscribe(subscription);
   }
 
   @Override
   public void onNext(T flowRow) {
-    System.out.println("MappingFunctionProcessor::onSubscribe::onNext(T flowRow)");
     try {
       // 1. Attempt the mapping (this executes your lambda)
       // 2. If successful, pass it downstream
-      System.out.println("MappingFunctionProcessor::onSubscribe::downstream.onNext(mapper.apply(flowRow, flowRow.getFlowRowMetadata()))");
       downstream.onNext(mapper.apply(flowRow, flowRow.getFlowRowMetadata()));
     } catch (Throwable t) {
       // 3. If the lambda throws, we MUST catch it and signal onError
@@ -45,7 +41,6 @@ public class MappingFunctionProcessor<T extends FlowRow, R> implements Flow.Proc
 
   @Override
   public void onComplete() {
-    System.out.println("MappingFunctionProcessor::onComplete::downstream.onComplete()");
     downstream.onComplete();
   }
 }

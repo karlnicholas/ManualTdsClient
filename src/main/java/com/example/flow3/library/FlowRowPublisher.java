@@ -23,12 +23,9 @@ public class FlowRowPublisher implements Flow.Publisher<FlowRow> {
 
   @Override
   public void subscribe(Flow.Subscriber<? super FlowRow> subscriber) {
-    System.out.println("FlowRowPublisher::subscribe(Flow.Subscriber<? super FlowRow> subscriber)");
-    System.out.println("FlowRowPublisher::subscriber.onSubscribe(new Flow.Subscription() {");
     subscriber.onSubscribe(new Flow.Subscription() {
       @Override
       public void request(long n) {
-        System.out.println("FlowRowPublisher::request(long n)::n = " + n);
         // In a real DB driver, you'd check 'n' and only fetch that many rows.
         // For now, we just ensure we only start once.
         ExecutorService threadPoolExecutor = Executors.newSingleThreadExecutor();
@@ -47,14 +44,12 @@ public class FlowRowPublisher implements Flow.Publisher<FlowRow> {
 
             // 3. One last check before emitting
             if (!isCancelled.get()) {
-              System.out.println("FlowRowPublisher::request(long n)::subscriber.onNext(new FlowRowImpl(i, columnNames))");
               subscriber.onNext(new FlowRowImpl(i, columnNames));
             }
           }
 
           // 4. Only complete if we finished naturally (not cancelled)
           if (!isCancelled.get()) {
-            System.out.println("FlowRowPublisher::request(long n)::subscriber.onComplete()");
             subscriber.onComplete();
           }
 

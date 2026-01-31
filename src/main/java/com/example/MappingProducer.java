@@ -39,27 +39,14 @@ public class MappingProducer<T> implements Publisher<T> {
         @Override
         public void request(long n) {
           if (n > 0 && !cancelled && executed.compareAndSet(false, true)) {
-             ExecutorService executor = Executors.newSingleThreadExecutor();
-             executor.submit(() -> {
-               if (!cancelled) {
-                 try {
-                   subscriber.onNext(value);
-                   if (!cancelled) subscriber.onComplete();
-                 } catch (Throwable t) {
-                   subscriber.onError(t);
-                 }
-               }
-               executor.shutdown();
-             });
-
             // OPTIMIZED: Synchronous emission is standard for 'just'
             // unless we strictly need to change threads (which requires a shared Scheduler).
-//            try {
-//              subscriber.onNext(value);
-//              if (!cancelled) subscriber.onComplete();
-//            } catch (Throwable t) {
-//              subscriber.onError(t);
-//            }
+            try {
+              subscriber.onNext(value);
+              if (!cancelled) subscriber.onComplete();
+            } catch (Throwable t) {
+              subscriber.onError(t);
+            }
           }
         }
 
