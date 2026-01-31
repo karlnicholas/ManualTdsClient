@@ -3,6 +3,7 @@ package com.example;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
 import io.r2dbc.spi.Statement;
+import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.TdsClient;
 
 import java.time.LocalDate;
@@ -40,7 +41,7 @@ public class CSharpTdsClient {
                     CONSTRAINT UIX_users_email  UNIQUE          (email)
                 );
                 """;
-            asyncQuery(sql, client);
+          asyncQueryMap(sql, client);
             sql = """
                 INSERT INTO dbo.users
                     (firstName, lastName, email, dateJoined, postCount, createdAt)
@@ -56,30 +57,63 @@ public class CSharpTdsClient {
                     ('Ava',      'Johnson',   'ava.j.creative@outlook.com',    '2023-07-28', 534,  '2023-07-28T22:30:47Z'),
                     ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
                 """;
-            asyncQuery(sql, client);
+            asyncQueryMap(sql, client);
             sql = "select * from dbo.users";
-            asyncQuery(sql, client);
+          asyncQueryMap(sql, client);
             //
 
-//            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
-//            PreparedRpcQuery prp = client.queryRpc(sql)
-//                .bind("@p1", "Michael")
-//                .bind("@p2", "Thomas")
-//                .bind("@p3", "mt@mt.com")
-//                .bind("@p4", 12L);
-//
-//            rpcAsyncUpdate(prp, client);
+            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
+          Statement statement = client.queryRpc(sql)
+                .bind("@p1", "Michael")
+                .bind("@p2", "Thomas")
+                .bind("@p3", "mt@mt.com")
+                .bind("@p4", 12L);
 
-//            sql = """
-//                SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
-//                """;
+          final CountDownLatch latch = new CountDownLatch(1);
+          MappingProducer.from(statement.execute())
+              .flatMap(result -> result.map(i->{
+                Object x = i.get(0);
+                return x;
+              }))
+              .subscribe(
+                  System.out::println,
+                  throwable -> {
+                    System.out.println("Error: " + throwable.getMessage());
+                    latch.countDown();
+                  },
+                  latch::countDown
+              );
+          latch.await();
+
+//          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+            sql = """
+                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
+                """;
+          statement = client.queryRpc(sql)
+              .bind("@p1", 100L);
+          final CountDownLatch latch2 = new CountDownLatch(1);
+          MappingProducer.from(statement.execute())
+              .flatMap(result -> {
+                Publisher<Integer> x1 = result.map(i -> i.get(0, Integer.class));
+                return x1;
+              })
+              .subscribe(
+                  System.out::println,
+                  throwable -> {
+                    System.out.println("Error: " + throwable.getMessage());
+                    latch2.countDown();
+                  },
+                  latch2::countDown
+              );
+          latch2.await();
+
             sql = """
                 SELECT * FROM dbo.users WHERE postCount > @p1
                 """;
-            Statement statement = client.queryRpc(sql)
+            statement = client.queryRpc(sql)
                 .bind("@p1", 100L);
 
-            rpcAsyncQuery(statement);
+            rpcAsyncQueryFlapMap(statement);
 
 //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
@@ -98,10 +132,10 @@ public class CSharpTdsClient {
           row.get(7, LocalDateTime.class)
   );
 
-  private void asyncQuery(String sql, TdsClient client) throws InterruptedException {
+  private void asyncQueryMap(String sql, TdsClient client) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     MappingProducer.from(client.queryAsync(sql).execute())
-            .flatMap(result -> result.map(mapper))
+            .map(result -> result.map(mapper))
             .subscribe(
                     System.out::println,
                     throwable -> {
@@ -113,7 +147,22 @@ public class CSharpTdsClient {
     latch.await();
   }
 
-  private void rpcAsyncQuery(Statement statement) throws InterruptedException {
+  private void rpcAsyncQueryMap(Statement statement) throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    MappingProducer.from(statement.execute())
+        .map(result -> result.map(mapper))
+        .subscribe(
+            System.out::println,
+            throwable -> {
+              System.out.println("Error: " + throwable.getMessage());
+              latch.countDown();
+            },
+            latch::countDown
+        );
+    latch.await();
+  }
+
+  private void rpcAsyncQueryFlapMap(Statement statement) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     MappingProducer.from(statement.execute())
             .flatMap(result -> result.map(mapper))

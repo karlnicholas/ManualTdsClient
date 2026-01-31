@@ -12,13 +12,16 @@ public class FlowResultImpl implements FlowResult {
 
   @Override
   public <T> Flow.Publisher<T> map(BiFunction<FlowRow, FlowRowMetadata, ? extends T> mappingFunction) {
+    System.out.println("FlowResultImpl::map(BiFunction<FlowRow, FlowRowMetadata, ? extends T> mappingFunction)");
     // Return a new Publisher. When someone subscribes to THIS...
     return subscriber -> {
       // create a mapping processor, give it the mapping function and the subscriber
       MappingFunctionProcessor<FlowRow, T> processor = new MappingFunctionProcessor<>(mappingFunction);
       // 1. First, tell the processor who the final subscriber is
+      System.out.println("FlowResultImpl::map::processor.subscribe(subscriber)");
       processor.subscribe(subscriber);
       // 2. ONLY THEN, connect the processor to the data source
+      System.out.println("FlowResultImpl::map::source.subscribe(processor)");
       source.subscribe(processor);
     };
   }
