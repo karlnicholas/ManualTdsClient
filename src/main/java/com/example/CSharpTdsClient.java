@@ -3,7 +3,6 @@ package com.example;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
 import io.r2dbc.spi.Statement;
-import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.TdsClient;
 
 import java.time.LocalDate;
@@ -41,7 +40,7 @@ public class CSharpTdsClient {
 //                    CONSTRAINT UIX_users_email  UNIQUE          (email)
 //                );
 //                """;
-//          asyncQueryMap(sql, client);
+//          asyncQueryFlatMap(sql, client);
 //            sql = """
 //                INSERT INTO dbo.users
 //                    (firstName, lastName, email, dateJoined, postCount, createdAt)
@@ -57,9 +56,9 @@ public class CSharpTdsClient {
 //                    ('Ava',      'Johnson',   'ava.j.creative@outlook.com',    '2023-07-28', 534,  '2023-07-28T22:30:47Z'),
 //                    ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
 //                """;
-//            asyncQueryMap(sql, client);
-          String sql = "select * from dbo.some_entity";
-          asyncQueryMap(sql, client);
+//          asyncQueryFlatMap(sql, client);
+          String sql = "select * from dbo.users";
+          asyncQueryFlatMap(sql, client);
             //
 
 //            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
@@ -121,25 +120,40 @@ public class CSharpTdsClient {
     }
 
   }
-//  BiFunction<Row, RowMetadata, DbRecord> mapper =  (row, meta) -> new DbRecord(
-//          row.get(0, Long.class),
-//          row.get(1, String.class),
-//          row.get(2, String.class),
-//          row.get(3, String.class),
-//          row.get(4, LocalDate.class),
-//          row.get(5, Long.class),
-//          row.get(6, LocalDateTime.class),
-//          row.get(7, LocalDateTime.class)
-//  );
+  BiFunction<Row, RowMetadata, DbRecord> mapper =  (row, meta) -> new DbRecord(
+          row.get(0, Long.class),
+          row.get(1, String.class),
+          row.get(2, String.class),
+          row.get(3, String.class),
+          row.get(4, LocalDate.class),
+          row.get(5, Long.class),
+          row.get(6, LocalDateTime.class),
+          row.get(7, LocalDateTime.class)
+  );
 
-  private final BiFunction<Row, RowMetadata, SomeEntity> mapper = (row, meta) -> {
-    SomeEntity someEntity = new SomeEntity();
-    someEntity.setId(row.get("id", Long.class));
-    someEntity.setSvalue(row.get("svalue", String.class));
-    return someEntity;
-  };
+//  private final BiFunction<Row, RowMetadata, SomeEntity> mapper = (row, meta) -> {
+//    SomeEntity someEntity = new SomeEntity();
+//    someEntity.setId(row.get("id", Long.class));
+//    someEntity.setSvalue(row.get("svalue", String.class));
+//    return someEntity;
+//  };
 
   private void asyncQueryMap(String sql, TdsClient client) throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    MappingProducer.from(client.queryAsync(sql).execute())
+        .map(result -> result.map(mapper))
+        .subscribe(
+            System.out::println,
+            throwable -> {
+              System.out.println("Error: " + throwable.getMessage());
+              latch.countDown();
+            },
+            latch::countDown
+        );
+    latch.await();
+  }
+
+  private void asyncQueryFlatMap(String sql, TdsClient client) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     MappingProducer.from(client.queryAsync(sql).execute())
             .flatMap(result -> result.map(mapper))
