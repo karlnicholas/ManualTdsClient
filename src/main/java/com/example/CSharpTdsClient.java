@@ -115,7 +115,15 @@ public class CSharpTdsClient {
 
             rpcAsyncQueryFlapMap(statement);
 
-//            CountDownLatch latch = new CountDownLatch(1);
+          sql = """
+                SELECT * FROM dbo.users WHERE postCount > @p1
+                """;
+          statement = client.queryRpc(sql)
+              .bind(1, 100L);
+
+          rpcAsyncQueryFlapMap(statement);
+
+          //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
 //            statement.execute()            // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
     }
