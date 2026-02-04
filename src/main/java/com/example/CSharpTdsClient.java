@@ -93,10 +93,7 @@ public class CSharpTdsClient {
               .bind("@p1", 100L);
           final CountDownLatch latch2 = new CountDownLatch(1);
           MappingProducer.from(statement.execute())
-              .flatMap(result -> {
-                Publisher<Integer> x1 = result.map(i -> i.get(0, Integer.class));
-                return x1;
-              })
+              .flatMap(result -> result.map(i -> i.get(0, Integer.class)))
               .subscribe(
                   System.out::println,
                   throwable -> {
@@ -146,21 +143,6 @@ public class CSharpTdsClient {
 //    someEntity.setSvalue(row.get("svalue", String.class));
 //    return someEntity;
 //  };
-
-  private void asyncQueryMap(String sql, TdsClient client) throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
-    MappingProducer.from(client.queryAsync(sql).execute())
-        .map(result -> result.map(mapper))
-        .subscribe(
-            System.out::println,
-            throwable -> {
-              System.out.println("Error: " + throwable.getMessage());
-              latch.countDown();
-            },
-            latch::countDown
-        );
-    latch.await();
-  }
 
   private void asyncQueryFlatMap(String sql, TdsClient client) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
