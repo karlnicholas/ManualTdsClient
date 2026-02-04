@@ -13,7 +13,7 @@ public record AllDataTypesRecord(
 
         // Exact Numerics
         Boolean testBit,
-        Short testTinyInt,
+        Byte testTinyInt,     // CHANGED: Short -> Byte
         Short testSmallInt,
         Integer testInt,
         Long testBigInt,
@@ -59,7 +59,7 @@ public record AllDataTypesRecord(
   public String toString() {
     return "VALUES (\n" +
             "    " + fmt(testBit) + ",       -- test_bit\n" +
-            "    " + fmt(testTinyInt) + ",     -- test_tinyint\n" +
+            "    " + fmt(testTinyInt) + ",     -- test_tinyint\n" + // Calls fmt(Byte)
             "    " + fmt(testSmallInt) + ",   -- test_smallint\n" +
             "    " + fmt(testInt) + ",        -- test_int\n" +
             "    " + fmt(testBigInt) + ",     -- test_bigint\n" +
@@ -93,6 +93,12 @@ public record AllDataTypesRecord(
 
   // --- Helpers ---
 
+  // NEW: Specific handler for Byte to display as unsigned (0-255)
+  private String fmt(Byte b) {
+    return b == null ? "NULL" : String.valueOf(Byte.toUnsignedInt(b));
+  }
+
+  // Handles Short, Integer, Long, BigDecimal, Float, Double
   private String fmt(Number n) {
     return n == null ? "NULL" : String.valueOf(n);
   }
@@ -104,18 +110,15 @@ public record AllDataTypesRecord(
   private String fmtSql(String s, boolean unicode) {
     if (s == null) return "NULL";
     String prefix = unicode ? "N" : "";
-    // Truncate huge strings for display sanity, or print full if debugging exact content
     String val = s.replace("'", "''");
     if (val.length() > 50 && val.matches("A+")) val = "REPLICATE('A', " + val.length() + ")";
     else if (val.length() > 50 && val.matches("あ+")) val = "REPLICATE(N'あ', " + val.length() + ")";
     else val = "'" + val + "'";
-
     return prefix + val;
   }
 
   private String fmtSql(Temporal t) {
     if (t == null) return "NULL";
-    // Replace ISO 'T' with SQL space (e.g., 2023-01-01T12:00 -> 2023-01-01 12:00)
     return "'" + t.toString().replace("T", " ") + "'";
   }
 

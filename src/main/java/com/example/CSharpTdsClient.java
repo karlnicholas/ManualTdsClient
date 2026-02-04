@@ -82,7 +82,6 @@ CREATE TABLE dbo.AllDataTypes (
                 """;
           asyncQueryFlatMap(sql, client, dbRecordMapper);
             sql = """
-
 -- Insert Test Data
 INSERT INTO dbo.AllDataTypes (
     test_bit, test_tinyint, test_smallint, test_int, test_bigint,
@@ -125,10 +124,13 @@ INSERT INTO dbo.AllDataTypes (
     NEWID(),                                -- GUID
     '<root><node>Test XML</node></root>'    -- XML
 );
-
                 """;
           asyncQueryFlatMap(sql, client, allDataTypesMapper);
-          sql = "SELECT * FROM dbo.AllDataTypes;\n";
+
+          sql = """
+    SET TEXTSIZE -1; -- Disable the 4096 byte limit
+    SELECT * FROM dbo.AllDataTypes;
+    """;
           asyncQueryFlatMap(sql, client, allDataTypesMapper);
             //
 
@@ -187,7 +189,7 @@ INSERT INTO dbo.AllDataTypes (
 
           // Exact Numerics
           row.get(1, Boolean.class),          // test_bit
-          row.get(2, Short.class),            // test_tinyint
+          row.get(2, Byte.class),            // test_tinyint
           row.get(3, Short.class),            // test_smallint
           row.get(4, Integer.class),          // test_int
           row.get(5, Long.class),             // test_bigint
