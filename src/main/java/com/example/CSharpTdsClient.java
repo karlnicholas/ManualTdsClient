@@ -67,7 +67,7 @@ public class CSharpTdsClient {
                 .bind("@p1", "Michael")
                 .bind("@p2", "Thomas")
                 .bind("@p3", "mt@mt.com")
-                .bind("@p4", 12L);
+                .bind("@p4", 120L);
 
           rpcAsyncQueryFlapMap(statement, longMapper);
 
