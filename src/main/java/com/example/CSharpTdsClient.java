@@ -41,7 +41,7 @@ public class CSharpTdsClient {
                     CONSTRAINT UIX_users_email  UNIQUE          (email)
                 );
                 """;
-          asyncQueryFlatMap(sql, client);
+          asyncQueryFlatMap(sql, client, dbRecordMapper);
             sql = """
                 INSERT INTO dbo.users
                     (firstName, lastName, email, dateJoined, postCount, createdAt)
@@ -57,9 +57,9 @@ public class CSharpTdsClient {
                     ('Ava',      'Johnson',   'ava.j.creative@outlook.com',    '2023-07-28', 534,  '2023-07-28T22:30:47Z'),
                     ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
                 """;
-          asyncQueryFlatMap(sql, client);
+          asyncQueryFlatMap(sql, client, dbRecordMapper);
           sql = "select * from dbo.users";
-          asyncQueryFlatMap(sql, client);
+          asyncQueryFlatMap(sql, client, dbRecordMapper);
             //
 
             sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
@@ -69,21 +69,7 @@ public class CSharpTdsClient {
                 .bind("@p3", "mt@mt.com")
                 .bind("@p4", 12L);
 
-          final CountDownLatch latch = new CountDownLatch(1);
-          MappingProducer.from(statement.execute())
-              .flatMap(result -> result.map(i->{
-                Object x = i.get(0);
-                return x;
-              }))
-              .subscribe(
-                  System.out::println,
-                  throwable -> {
-                    System.out.println("Error: " + throwable.getMessage());
-                    latch.countDown();
-                  },
-                  latch::countDown
-              );
-          latch.await();
+          rpcAsyncQueryFlapMap(statement, longMapper);
 
 //          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
             sql = """
@@ -91,18 +77,7 @@ public class CSharpTdsClient {
                 """;
           statement = client.queryRpc(sql)
               .bind("@p1", 100L);
-          final CountDownLatch latch2 = new CountDownLatch(1);
-          MappingProducer.from(statement.execute())
-              .flatMap(result -> result.map(i -> i.get(0, Integer.class)))
-              .subscribe(
-                  System.out::println,
-                  throwable -> {
-                    System.out.println("Error: " + throwable.getMessage());
-                    latch2.countDown();
-                  },
-                  latch2::countDown
-              );
-          latch2.await();
+          rpcAsyncQueryFlapMap(statement, longMapper);
 
             sql = """
                 SELECT * FROM dbo.users WHERE postCount > @p1
@@ -110,7 +85,7 @@ public class CSharpTdsClient {
             statement = client.queryRpc(sql)
                 .bind("@p1", 100L);
 
-            rpcAsyncQueryFlapMap(statement);
+            rpcAsyncQueryFlapMap(statement, dbRecordMapper);
 
           sql = """
                 SELECT * FROM dbo.users WHERE postCount > @p1
@@ -118,7 +93,7 @@ public class CSharpTdsClient {
           statement = client.queryRpc(sql)
               .bind(1, 100L);
 
-          rpcAsyncQueryFlapMap(statement);
+          rpcAsyncQueryFlapMap(statement, dbRecordMapper);
 
           //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
@@ -126,7 +101,7 @@ public class CSharpTdsClient {
     }
 
   }
-  BiFunction<Row, RowMetadata, DbRecord> mapper =  (row, meta) -> new DbRecord(
+  BiFunction<Row, RowMetadata, DbRecord> dbRecordMapper =  (row, meta) -> new DbRecord(
           row.get(0, Long.class),
           row.get(1, String.class),
           row.get(2, String.class),
@@ -137,14 +112,16 @@ public class CSharpTdsClient {
           row.get(7, LocalDateTime.class)
   );
 
-//  private final BiFunction<Row, RowMetadata, SomeEntity> mapper = (row, meta) -> {
+  BiFunction<Row, RowMetadata, Long> longMapper =  (row, meta) -> row.get(0, Long.class);
+
+  //  private final BiFunction<Row, RowMetadata, SomeEntity> mapper = (row, meta) -> {
 //    SomeEntity someEntity = new SomeEntity();
 //    someEntity.setId(row.get("id", Long.class));
 //    someEntity.setSvalue(row.get("svalue", String.class));
 //    return someEntity;
 //  };
 
-  private void asyncQueryFlatMap(String sql, TdsClient client) throws InterruptedException {
+  private <T> void asyncQueryFlatMap(String sql, TdsClient client, BiFunction<Row, RowMetadata, T> mapper) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     MappingProducer.from(client.queryAsync(sql).execute())
             .flatMap(result -> result.map(mapper))
@@ -159,22 +136,7 @@ public class CSharpTdsClient {
     latch.await();
   }
 
-  private void rpcAsyncQueryMap(Statement statement) throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
-    MappingProducer.from(statement.execute())
-        .map(result -> result.map(mapper))
-        .subscribe(
-            System.out::println,
-            throwable -> {
-              System.out.println("Error: " + throwable.getMessage());
-              latch.countDown();
-            },
-            latch::countDown
-        );
-    latch.await();
-  }
-
-  private void rpcAsyncQueryFlapMap(Statement statement) throws InterruptedException {
+  private <T> void rpcAsyncQueryFlapMap(Statement statement, BiFunction<Row, RowMetadata, T> mapper) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     MappingProducer.from(statement.execute())
             .flatMap(result -> result.map(mapper))
