@@ -6,8 +6,12 @@ import io.r2dbc.spi.Statement;
 import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.TdsClient;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 
@@ -25,76 +29,142 @@ public class CSharpTdsClient {
 //            queryAsync("SELECT 1; SELECT 2;", client);
 //            queryAsync("SELECT @@Version", client);
             String sql = """
-                DROP TABLE IF EXISTS dbo.users;
+DROP TABLE IF EXISTS dbo.AllDataTypes;
 
-                CREATE TABLE dbo.users (
-                    id          BIGINT          IDENTITY(1,1)   NOT NULL,
-                    firstName   NVARCHAR(100)   NULL,
-                    lastName    NVARCHAR(100)   NULL,
-                    email       NVARCHAR(254)   NOT NULL,
-                    dateJoined  DATE            NULL            DEFAULT CAST(GETDATE() AS DATE),
-                    postCount   BIGINT          NULL            DEFAULT 0,
-                    createdAt   DATETIME2(3)    NOT NULL        DEFAULT SYSUTCDATETIME(),
-                    updatedAt   DATETIME2(3)    NULL,
+CREATE TABLE dbo.AllDataTypes (
+    -- Identity / Primary Key
+    id                  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 
-                    CONSTRAINT PK_users         PRIMARY KEY     (id),
-                    CONSTRAINT UIX_users_email  UNIQUE          (email)
-                );
+    -- Exact Numerics
+    test_bit            BIT NOT NULL,
+    test_tinyint        TINYINT NULL,
+    test_smallint       SMALLINT NULL,
+    test_int            INT NULL,
+    test_bigint         BIGINT NULL,
+    test_decimal        DECIMAL(18, 4) NULL,  -- Triggers PREC_SCALE logic
+    test_numeric        NUMERIC(10, 2) NULL,
+    test_smallmoney     SMALLMONEY NULL,
+    test_money          MONEY NULL,
+
+    -- Approximate Numerics
+    test_real           REAL NULL,            -- Maps to FLT4
+    test_float          FLOAT NULL,           -- Maps to FLT8
+
+    -- Date and Time
+    test_date           DATE NULL,
+    test_time           TIME(7) NULL,
+    test_datetime       DATETIME NULL,        -- Classic 8-byte datetime
+    test_datetime2      DATETIME2(7) NULL,    -- High precision
+    test_smalldatetime  SMALLDATETIME NULL,
+    test_dtoffset       DATETIMEOFFSET(7) NULL,
+
+    -- Character Strings (Non-Unicode)
+    test_char           CHAR(10) NULL,
+    test_varchar        VARCHAR(50) NULL,
+    test_varchar_max    VARCHAR(MAX) NULL,    -- Triggers PLP (Partially Length Prefixed)
+    test_text           TEXT NULL,            -- Legacy LOB
+
+    -- Unicode Strings
+    test_nchar          NCHAR(10) NULL,
+    test_nvarchar       NVARCHAR(50) NULL,
+    test_nvarchar_max   NVARCHAR(MAX) NULL,   -- Triggers PLP
+
+    -- Binary Strings
+    test_binary         BINARY(8) NULL,
+    test_varbinary      VARBINARY(50) NULL,
+    test_varbinary_max  VARBINARY(MAX) NULL,  -- Triggers PLP
+    test_image          IMAGE NULL,           -- Legacy LOB
+
+    -- Other
+    test_guid           UNIQUEIDENTIFIER NULL,
+    test_xml            XML NULL
+);
                 """;
           asyncQueryFlatMap(sql, client, dbRecordMapper);
             sql = """
-                INSERT INTO dbo.users
-                    (firstName, lastName, email, dateJoined, postCount, createdAt)
-                VALUES
-                    ('Emma',     'Thompson',  'emma.thompson84@gmail.com',     '2023-05-12',  47,  '2023-05-12T14:30:00Z'),
-                    ('Liam',     'Rodriguez', 'liam.r1992@outlook.com',        '2024-01-08', 312,  '2024-01-08T09:15:22Z'),
-                    ('Sophia',   'Patel',     'sophia.patel.designs@gmail.com','2022-11-30',  89,  '2022-11-30T18:45:10Z'),
-                    ('Noah',     'Kim',       'noah.kim.dev@proton.me',        '2025-02-19', 156,  '2025-02-19T11:20:00Z'),
-                    ('Olivia',   'Martinez',  'olivia.martinez.music@yahoo.com','2023-09-04',  23,  '2023-09-04T16:05:33Z'),
-                    ('James',    'Wilson',    'j.wilson.photography@gmail.com','2024-06-15', 421,  '2024-06-15T13:40:55Z'),
-                    ('Isabella', 'Chen',      'isabella.chen95@icloud.com',    '2021-12-22',  67,  '2021-12-22T20:10:12Z'),
-                    ('Ethan',    'Nguyen',    'ethan.nguyen.work@gmail.com',   '2025-03-01', 198,  '2025-03-01T08:55:00Z'),
-                    ('Ava',      'Johnson',   'ava.j.creative@outlook.com',    '2023-07-28', 534,  '2023-07-28T22:30:47Z'),
-                    ('Benjamin', 'Garcia',    'ben.garcia.tech@protonmail.com','2024-10-17', 105,  '2024-10-17T10:22:19Z');
+
+-- Insert Test Data
+INSERT INTO dbo.AllDataTypes (
+    test_bit, test_tinyint, test_smallint, test_int, test_bigint,
+    test_decimal, test_numeric, test_smallmoney, test_money,
+    test_real, test_float,
+    test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
+    test_char, test_varchar, test_varchar_max, test_text,
+    test_nchar, test_nvarchar, test_nvarchar_max,
+    test_binary, test_varbinary, test_varbinary_max, test_image,
+    test_guid, test_xml
+) VALUES (
+    1,                                      -- BIT
+    255,                                    -- TINYINT
+    32000,                                  -- SMALLINT
+    2000000000,                             -- INT
+    9000000000000000000,                    -- BIGINT
+    12345.6789,                             -- DECIMAL
+    999.99,                                 -- NUMERIC
+    214.99,                                 -- SMALLMONEY
+    922337203685477.58,                     -- MONEY
+    123.45,                                 -- REAL
+    123456789.987654321,                    -- FLOAT
+    '2023-12-25',                           -- DATE
+    '14:30:15.1234567',                     -- TIME
+    '2023-12-25 14:30:00',                  -- DATETIME
+    '2023-12-25 14:30:15.1234567',          -- DATETIME2
+    '2023-12-25 14:30:00',                  -- SMALLDATETIME
+    '2023-12-25 14:30:15.1234567 +05:30',   -- DATETIMEOFFSET
+    'FixedChar',                            -- CHAR
+    'Variable Length String',               -- VARCHAR
+    REPLICATE('A', 5000),                   -- VARCHAR(MAX) (Large PLP)
+    'Legacy Text Data',                     -- TEXT
+    N'FixedUni',                            -- NCHAR
+    N'Unicode String',                      -- NVARCHAR
+    REPLICATE(N'あ', 4000),                  -- NVARCHAR(MAX) (Large PLP)
+    0xDEADBEEF,                             -- BINARY
+    0xCAFEBABE,                             -- VARBINARY
+    0xFEEDBACC,                             -- VARBINARY(MAX)
+    0x00112233,                             -- IMAGE
+    NEWID(),                                -- GUID
+    '<root><node>Test XML</node></root>'    -- XML
+);
+
                 """;
-          asyncQueryFlatMap(sql, client, dbRecordMapper);
-          sql = "select * from dbo.users";
-          asyncQueryFlatMap(sql, client, dbRecordMapper);
+          asyncQueryFlatMap(sql, client, allDataTypesMapper);
+          sql = "SELECT * FROM dbo.AllDataTypes;\n";
+          asyncQueryFlatMap(sql, client, allDataTypesMapper);
             //
 
-            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
-          Statement statement = client.queryRpc(sql)
-                .bind("@p1", "Michael")
-                .bind("@p2", "Thomas")
-                .bind("@p3", "mt@mt.com")
-                .bind("@p4", 120L);
-
-          rpcAsyncQueryFlapMap(statement, longMapper);
-
-//          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
-            sql = """
-                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
-                """;
-          statement = client.queryRpc(sql)
-              .bind("@p1", 100L);
-          rpcAsyncQueryFlapMap(statement, longMapper);
-
-            sql = """
-                SELECT * FROM dbo.users WHERE postCount > @p1
-                """;
-            statement = client.queryRpc(sql)
-                .bind("@p1", 100L);
-
-            rpcAsyncQueryFlapMap(statement, dbRecordMapper);
-
-          sql = """
-                SELECT * FROM dbo.users WHERE postCount > @p1
-                """;
-          statement = client.queryRpc(sql)
-              .bind(1, 100L);
-
-          rpcAsyncQueryFlapMap(statement, dbRecordMapper);
-
+//            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
+//          Statement statement = client.queryRpc(sql)
+//                .bind("@p1", "Michael")
+//                .bind("@p2", "Thomas")
+//                .bind("@p3", "mt@mt.com")
+//                .bind("@p4", 120L);
+//
+//          rpcAsyncQueryFlapMap(statement, longMapper);
+//
+////          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+//            sql = """
+//                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
+//                """;
+//          statement = client.queryRpc(sql)
+//              .bind("@p1", 100L);
+//          rpcAsyncQueryFlapMap(statement, longMapper);
+//
+//            sql = """
+//                SELECT * FROM dbo.users WHERE postCount > @p1
+//                """;
+//            statement = client.queryRpc(sql)
+//                .bind("@p1", 100L);
+//
+//            rpcAsyncQueryFlapMap(statement, dbRecordMapper);
+//
+//          sql = """
+//                SELECT * FROM dbo.users WHERE postCount > @p1
+//                """;
+//          statement = client.queryRpc(sql)
+//              .bind(1, 100L);
+//
+//          rpcAsyncQueryFlapMap(statement, dbRecordMapper);
+//
           //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
 //            statement.execute()            // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
@@ -110,6 +180,54 @@ public class CSharpTdsClient {
           row.get(5, Long.class),
           row.get(6, LocalDateTime.class),
           row.get(7, LocalDateTime.class)
+  );
+
+  BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
+          row.get(0, Integer.class),          // id
+
+          // Exact Numerics
+          row.get(1, Boolean.class),          // test_bit
+          row.get(2, Short.class),            // test_tinyint
+          row.get(3, Short.class),            // test_smallint
+          row.get(4, Integer.class),          // test_int
+          row.get(5, Long.class),             // test_bigint
+          row.get(6, BigDecimal.class),       // test_decimal
+          row.get(7, BigDecimal.class),       // test_numeric
+          row.get(8, BigDecimal.class),       // test_smallmoney
+          row.get(9, BigDecimal.class),       // test_money
+
+          // Approximate Numerics
+          row.get(10, Float.class),           // test_real
+          row.get(11, Double.class),          // test_float
+
+          // Date and Time
+          row.get(12, LocalDate.class),       // test_date
+          row.get(13, LocalTime.class),       // test_time
+          row.get(14, LocalDateTime.class),   // test_datetime
+          row.get(15, LocalDateTime.class),   // test_datetime2
+          row.get(16, LocalDateTime.class),   // test_smalldatetime
+          row.get(17, OffsetDateTime.class),  // test_dtoffset
+
+          // Character Strings
+          row.get(18, String.class),          // test_char
+          row.get(19, String.class),          // test_varchar
+          row.get(20, String.class),          // test_varchar_max
+          row.get(21, String.class),          // test_text
+
+          // Unicode Strings
+          row.get(22, String.class),          // test_nchar
+          row.get(23, String.class),          // test_nvarchar
+          row.get(24, String.class),          // test_nvarchar_max
+
+          // Binary Strings
+          row.get(25, byte[].class),          // test_binary
+          row.get(26, byte[].class),          // test_varbinary
+          row.get(27, byte[].class),          // test_varbinary_max
+          row.get(28, byte[].class),          // test_image
+
+          // Other
+          row.get(29, UUID.class),            // test_guid
+          row.get(30, String.class)           // test_xml
   );
 
   BiFunction<Row, RowMetadata, Long> longMapper =  (row, meta) -> row.get(0, Long.class);
