@@ -25,22 +25,6 @@ public class InsertAllDataTypesJdbc {
     String username = "reactnonreact";
     String password = "reactnonreact";
 
-    // Values to insert
-    String firstName = "Michael";
-    String lastName  = "Brown";
-    String email     = "mb@m.com";
-    long   postCount = 12;
-
-    // ────────────────────────────────────────────────
-    // SQL - we let defaults handle dateJoined, createdAt, updatedAt
-    // ────────────────────────────────────────────────
-//    String sql = """
-//            INSERT INTO dbo.users
-//                (firstName, lastName, email, postCount)
-//            VALUES
-//                (?, ?, ?, ?)
-//            """;
-
 
 //    Statement statement = client.queryRpc(sql)
 //        // --- Exact Numerics ---
@@ -115,54 +99,53 @@ public class InsertAllDataTypesJdbc {
          PreparedStatement ps = conn.prepareStatement(sql)) {
 
 // --- Exact Numerics ---
-    ps.setBoolean(1, true);                                      // test_bit
-    ps.setShort(2, (short) 255);                                 // test_tinyint (Use Short for 0-255 range)
-    ps.setShort(3, (short) 32000);                               // test_smallint
-    ps.setInt(4, 2000000000);                                    // test_int
-    ps.setLong(5, 9000000000000000000L);                         // test_bigint
-    ps.setBigDecimal(6, new BigDecimal("12345.6789"));           // test_decimal
-    ps.setBigDecimal(7, new BigDecimal("999.99"));               // test_numeric
-    ps.setBigDecimal(8, new BigDecimal("214.99"));               // test_smallmoney
-    ps.setBigDecimal(9, new BigDecimal("922337203685477.58"));   // test_money
+      ps.setBoolean(1, true);                                      // test_bit
+      ps.setShort(2, (short) 255);                                 // test_tinyint (Use Short for 0-255 range)
+      ps.setShort(3, (short) 32000);                               // test_smallint
+      ps.setInt(4, 2000000000);                                    // test_int
+      ps.setLong(5, 9000000000000000000L);                         // test_bigint
+      ps.setBigDecimal(6, new BigDecimal("12345.6789"));           // test_decimal
+      ps.setBigDecimal(7, new BigDecimal("999.99"));               // test_numeric
+      ps.setBigDecimal(8, new BigDecimal("214.99"));               // test_smallmoney
+      ps.setBigDecimal(9, new BigDecimal("922337203685477.58"));   // test_money
 
-    // --- Approximate Numerics ---
-    ps.setFloat(10, 123.45f);                                    // test_real
-    ps.setDouble(11, 123456789.987654321d);                      // test_float
+      // --- Approximate Numerics ---
+      ps.setFloat(10, 123.45f);                                    // test_real
+      ps.setDouble(11, 123456789.987654321d);                      // test_float
 
-    // --- Date and Time (JDBC 4.2 supports java.time directly via setObject) ---
-    ps.setObject(12, LocalDate.of(2023, 12, 25));                // test_date
-    ps.setObject(13, LocalTime.parse("14:30:15.1234567"));       // test_time
-    ps.setObject(14, LocalDateTime.parse("2023-12-25T14:30:00"));// test_datetime
-    ps.setObject(15, LocalDateTime.parse("2023-12-25T14:30:15.1234567")); // test_datetime2
-    ps.setObject(16, LocalDateTime.parse("2023-12-25T14:30:00"));// test_smalldatetime
-    ps.setObject(17, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")); // test_dtoffset
+      // --- Date and Time (JDBC 4.2 supports java.time directly via setObject) ---
+      ps.setObject(12, LocalDate.of(2023, 12, 25));                // test_date
+      ps.setObject(13, LocalTime.parse("14:30:15.1234567"));       // test_time
+      ps.setObject(14, LocalDateTime.parse("2023-12-25T14:30:00"));// test_datetime
+      ps.setObject(15, LocalDateTime.parse("2023-12-25T14:30:15.1234567")); // test_datetime2
+      ps.setObject(16, LocalDateTime.parse("2023-12-25T14:30:00"));// test_smalldatetime
+      ps.setObject(17, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")); // test_dtoffset
 
-    // --- Character Strings ---
-    ps.setString(18, "FixedChar");                               // test_char
-    ps.setString(19, "Variable Length String");                  // test_varchar
-    ps.setString(20, "A".repeat(5000));                          // test_varchar_max
-    ps.setString(21, "Legacy Text Data");                        // test_text
+      // --- Character Strings ---
+      ps.setString(18, "FixedChar");                               // test_char
+      ps.setString(19, "Variable Length String");                  // test_varchar
+      ps.setString(20, "A".repeat(5000));                          // test_varchar_max
+      ps.setString(21, "Legacy Text Data");                        // test_text
 
-    // --- Unicode Strings (setNString is preferred for N-types) ---
-    ps.setNString(22, "FixedUni");                               // test_nchar
-    ps.setNString(23, "Unicode String");                         // test_nvarchar
-    ps.setNString(24, "あ".repeat(4000));                        // test_nvarchar_max
+      // --- Unicode Strings (setNString is preferred for N-types) ---
+      ps.setNString(22, "FixedUni");                               // test_nchar
+      ps.setNString(23, "Unicode String");                         // test_nvarchar
+      ps.setNString(24, "あ".repeat(4000));                        // test_nvarchar_max
 
-    // --- Binary Strings (JDBC uses byte[], not ByteBuffer) ---
-    ps.setBytes(25, new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}); // test_binary
-    ps.setBytes(26, new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}); // test_varbinary
-    ps.setBytes(27, new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}); // test_varbinary_max
-    ps.setBytes(28, new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}); // test_image
+      // --- Binary Strings (JDBC uses byte[], not ByteBuffer) ---
+      ps.setBytes(25, new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}); // test_binary
+      ps.setBytes(26, new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}); // test_varbinary
+      ps.setBytes(27, new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}); // test_varbinary_max
+      ps.setBytes(28, new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}); // test_image
 
-    // --- Other Data Types ---
-    ps.setObject(29, UUID.randomUUID());                         // test_guid
-    ps.setString(30, "<root><node>Test XML</node></root>");      // test_xml (Drivers usually implicit cast String to XML)
+      // --- Other Data Types ---
+      ps.setObject(29, UUID.randomUUID());                         // test_guid
+      ps.setString(30, "<root><node>Test XML</node></root>");      // test_xml (Drivers usually implicit cast String to XML)
 
 
       int rowsAffected = ps.executeUpdate();
 
       System.out.println("Insert successful. Rows affected: " + rowsAffected);
-      System.out.println("→ Inserted: " + firstName + " " + lastName + " <" + email + "> (postCount = " + postCount + ")");
 
     } catch (SQLException e) {
       System.err.println("SQL Error: " + e.getMessage());
