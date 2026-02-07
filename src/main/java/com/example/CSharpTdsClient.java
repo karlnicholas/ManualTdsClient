@@ -128,11 +128,11 @@ INSERT INTO dbo.AllDataTypes (
                 """;
           asyncQueryFlatMap(sql, client, allDataTypesMapper);
 
-          sql = """
-    SET TEXTSIZE -1; -- Disable the 4096 byte limit
-    SELECT * FROM dbo.AllDataTypes;
-    """;
-          asyncQueryFlatMap(sql, client, allDataTypesMapper);
+//          sql = """
+//    SET TEXTSIZE -1; -- Disable the 4096 byte limit
+//    SELECT * FROM dbo.AllDataTypes;
+//    """;
+//          asyncQueryFlatMap(sql, client, allDataTypesMapper);
             //
 //              .bind("test_xml", io.r2dbc.mssql.MssqlType.XML.of("<root><node>Test XML</node></root>"));
           // Or simply bind a String for XML if the driver version supports implicit conversion
@@ -205,11 +205,11 @@ INSERT INTO dbo.AllDataTypes (
 
           rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
 
-          sql = """
-    SET TEXTSIZE -1; -- Disable the 4096 byte limit
-    SELECT * FROM dbo.AllDataTypes;
-    """;
-          asyncQueryFlatMap(sql, client, allDataTypesMapper);
+//          sql = """
+//    SET TEXTSIZE -1; -- Disable the 4096 byte limit
+//    SELECT * FROM dbo.AllDataTypes;
+//    """;
+//          asyncQueryFlatMap(sql, client, allDataTypesMapper);
 //            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
 
 //          Statement statement = client.queryRpc(sql)
