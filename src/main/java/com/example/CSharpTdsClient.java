@@ -2,7 +2,8 @@ package com.example;
 
 import io.r2dbc.spi.*;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.TdsConnectionImpl;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -14,6 +15,8 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 
+import static io.r2dbc.spi.ConnectionFactoryOptions.*;
+
 
 public class CSharpTdsClient {
     public static void main(String[] args) throws Exception {
@@ -23,65 +26,144 @@ public class CSharpTdsClient {
     private void run() throws Exception {
         String hostname = "localhost";
         int port = 1433;
-        TdsConnectionImpl client = new TdsConnectionImpl(hostname, port);
-          client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
+//        TdsConnectionImpl client = new TdsConnectionImpl(hostname, port);
+//          client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
 //            queryAsync("SELECT 1; SELECT 2;", client);
 //            queryAsync("SELECT @@Version", client);
-          String sql = """
+      ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
+              .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+              .option(HOST, "localhost")
+              .option(PORT, 1433)
+              .option(PASSWORD, "reactnonreact")
+              .option(USER, "reactnonreact")
+              .option(DATABASE, "reactnonreact")
+              .build());
+
+      System.out.println("Connecting to database... (connectionFactory)");
+      Publisher  <? extends Connection> connectionPublisher = connectionFactory.create();
+
+      System.out.println("Connecting to database... (connectionPublisher)");
+
+      CountDownLatch latch = new CountDownLatch(1);
+      MappingProducer.from(connectionPublisher)
+              .map(conn -> {
+                try {
+                  runSql(conn);
+                  return "runSql executed successfully";
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+              })
+              .subscribe(
+                      System.out::println,
+                      throwable -> {
+                        System.out.println("Error: " + throwable.getMessage());
+                        latch.countDown();
+                      },
+                      latch::countDown
+              );
+      latch.await();
+    }
+
+  String createSql = """
 DROP TABLE IF EXISTS dbo.AllDataTypes;
 
 CREATE TABLE dbo.AllDataTypes (
-  -- Identity / Primary Key
-  id                  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+-- Identity / Primary Key
+id                  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 
-  -- Exact Numerics
-  test_bit            BIT NOT NULL,
-  test_tinyint        TINYINT NULL,
-  test_smallint       SMALLINT NULL,
-  test_int            INT NULL,
-  test_bigint         BIGINT NULL,
-  test_decimal        DECIMAL(18, 4) NULL,  -- Triggers PREC_SCALE logic
-  test_numeric        NUMERIC(10, 2) NULL,
-  test_smallmoney     SMALLMONEY NULL,
-  test_money          MONEY NULL,
+-- Exact Numerics
+test_bit            BIT NOT NULL,
+test_tinyint        TINYINT NULL,
+test_smallint       SMALLINT NULL,
+test_int            INT NULL,
+test_bigint         BIGINT NULL,
+test_decimal        DECIMAL(18, 4) NULL,  -- Triggers PREC_SCALE logic
+test_numeric        NUMERIC(10, 2) NULL,
+test_smallmoney     SMALLMONEY NULL,
+test_money          MONEY NULL,
 
-  -- Approximate Numerics
-  test_real           REAL NULL,            -- Maps to FLT4
-  test_float          FLOAT NULL,           -- Maps to FLT8
+-- Approximate Numerics
+test_real           REAL NULL,            -- Maps to FLT4
+test_float          FLOAT NULL,           -- Maps to FLT8
 
-  -- Date and Time
-  test_date           DATE NULL,
-  test_time           TIME(7) NULL,
-  test_datetime       DATETIME NULL,        -- Classic 8-byte datetime
-  test_datetime2      DATETIME2(7) NULL,    -- High precision
-  test_smalldatetime  SMALLDATETIME NULL,
-  test_dtoffset       DATETIMEOFFSET(7) NULL,
+-- Date and Time
+test_date           DATE NULL,
+test_time           TIME(7) NULL,
+test_datetime       DATETIME NULL,        -- Classic 8-byte datetime
+test_datetime2      DATETIME2(7) NULL,    -- High precision
+test_smalldatetime  SMALLDATETIME NULL,
+test_dtoffset       DATETIMEOFFSET(7) NULL,
 
-  -- Character Strings (Non-Unicode)
-  test_char           CHAR(10) NULL,
-  test_varchar        VARCHAR(50) NULL,
-  test_varchar_max    VARCHAR(MAX) NULL,    -- Triggers PLP (Partially Length Prefixed)
-  test_text           TEXT NULL,            -- Legacy LOB
+-- Character Strings (Non-Unicode)
+test_char           CHAR(10) NULL,
+test_varchar        VARCHAR(50) NULL,
+test_varchar_max    VARCHAR(MAX) NULL,    -- Triggers PLP (Partially Length Prefixed)
+test_text           TEXT NULL,            -- Legacy LOB
 
-  -- Unicode Strings
-  test_nchar          NCHAR(10) NULL,
-  test_nvarchar       NVARCHAR(50) NULL,
-  test_nvarchar_max   NVARCHAR(MAX) NULL,   -- Triggers PLP
+-- Unicode Strings
+test_nchar          NCHAR(10) NULL,
+test_nvarchar       NVARCHAR(50) NULL,
+test_nvarchar_max   NVARCHAR(MAX) NULL,   -- Triggers PLP
 
-  -- Binary Strings
-  test_binary         BINARY(8) NULL,
-  test_varbinary      VARBINARY(50) NULL,
-  test_varbinary_max  VARBINARY(MAX) NULL,  -- Triggers PLP
-  test_image          IMAGE NULL,           -- Legacy LOB
+-- Binary Strings
+test_binary         BINARY(8) NULL,
+test_varbinary      VARBINARY(50) NULL,
+test_varbinary_max  VARBINARY(MAX) NULL,  -- Triggers PLP
+test_image          IMAGE NULL,           -- Legacy LOB
 
-  -- Other
-  test_guid           UNIQUEIDENTIFIER NULL,
-  test_xml            XML NULL
+-- Other
+test_guid           UNIQUEIDENTIFIER NULL,
+test_xml            XML NULL
 );
-              """;
-        asyncQueryFlatMap(sql, client, dbRecordMapper);
-          sql = """
+        """;
+
+  String insertSql = """
 -- Insert Test Data
+INSERT INTO dbo.AllDataTypes (
+test_bit, test_tinyint, test_smallint, test_int, test_bigint,
+test_decimal, test_numeric, test_smallmoney, test_money,
+test_real, test_float,
+test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
+test_char, test_varchar, test_varchar_max, test_text,
+test_nchar, test_nvarchar, test_nvarchar_max,
+test_binary, test_varbinary, test_varbinary_max, test_image,
+test_guid, test_xml
+) VALUES (
+1,                                      -- BIT
+255,                                    -- TINYINT
+32000,                                  -- SMALLINT
+2000000000,                             -- INT
+9000000000000000000,                    -- BIGINT
+12345.6789,                             -- DECIMAL
+999.99,                                 -- NUMERIC
+214.99,                                 -- SMALLMONEY
+922337203685477.58,                     -- MONEY
+123.45,                                 -- REAL
+123456789.987654321,                    -- FLOAT
+'2023-12-25',                           -- DATE
+'14:30:15.1234567',                     -- TIME
+'2023-12-25 14:30:00',                  -- DATETIME
+'2023-12-25 14:30:15.1234567',          -- DATETIME2
+'2023-12-25 14:30:00',                  -- SMALLDATETIME
+'2023-12-25 14:30:15.1234567 +05:30',   -- DATETIMEOFFSET
+'FixedChar',                            -- CHAR
+'Variable Length String',               -- VARCHAR
+REPLICATE('A', 5000),                   -- VARCHAR(MAX) (Large PLP)
+'Legacy Text Data',                     -- TEXT
+N'FixedUni',                            -- NCHAR
+N'Unicode String',                      -- NVARCHAR
+REPLICATE(N'あ', 4000),                  -- NVARCHAR(MAX) (Large PLP)
+0xDEADBEEF,                             -- BINARY
+0xCAFEBABE,                             -- VARBINARY
+0xFEEDBACC,                             -- VARBINARY(MAX)
+0x00112233,                             -- IMAGE
+NEWID(),                                -- GUID
+'<root><node>Test XML</node></root>'    -- XML
+);
+        """;
+
+  String bindSql = """
 INSERT INTO dbo.AllDataTypes (
   test_bit, test_tinyint, test_smallint, test_int, test_bigint,
   test_decimal, test_numeric, test_smallmoney, test_money,
@@ -92,71 +174,31 @@ INSERT INTO dbo.AllDataTypes (
   test_binary, test_varbinary, test_varbinary_max, test_image,
   test_guid, test_xml
 ) VALUES (
-  1,                                      -- BIT
-  255,                                    -- TINYINT
-  32000,                                  -- SMALLINT
-  2000000000,                             -- INT
-  9000000000000000000,                    -- BIGINT
-  12345.6789,                             -- DECIMAL
-  999.99,                                 -- NUMERIC
-  214.99,                                 -- SMALLMONEY
-  922337203685477.58,                     -- MONEY
-  123.45,                                 -- REAL
-  123456789.987654321,                    -- FLOAT
-  '2023-12-25',                           -- DATE
-  '14:30:15.1234567',                     -- TIME
-  '2023-12-25 14:30:00',                  -- DATETIME
-  '2023-12-25 14:30:15.1234567',          -- DATETIME2
-  '2023-12-25 14:30:00',                  -- SMALLDATETIME
-  '2023-12-25 14:30:15.1234567 +05:30',   -- DATETIMEOFFSET
-  'FixedChar',                            -- CHAR
-  'Variable Length String',               -- VARCHAR
-  REPLICATE('A', 5000),                   -- VARCHAR(MAX) (Large PLP)
-  'Legacy Text Data',                     -- TEXT
-  N'FixedUni',                            -- NCHAR
-  N'Unicode String',                      -- NVARCHAR
-  REPLICATE(N'あ', 4000),                  -- NVARCHAR(MAX) (Large PLP)
-  0xDEADBEEF,                             -- BINARY
-  0xCAFEBABE,                             -- VARBINARY
-  0xFEEDBACC,                             -- VARBINARY(MAX)
-  0x00112233,                             -- IMAGE
-  NEWID(),                                -- GUID
-  '<root><node>Test XML</node></root>'    -- XML
-);
-              """;
-        asyncQueryFlatMap(sql, client, allDataTypesMapper);
+  @p0, @p1, @p2, @p3, @p4,
+  @p5, @p6, @p7, @p8,
+  @p9, @p10,
+  @p11, @p12, @p13, @p14, @p15, @p16,
+  @p17, @p18, @p19, @p20,
+  @p21, @p22, @p23,
+  @p24, @p25, @p26, @p27,
+  @p28, @p29
+)
+""";
+
+  private void runSql(Connection connection) throws InterruptedException {
+    asyncQueryFlatMap(createSql, connection, allDataTypesMapper);
+    asyncQueryFlatMap(insertSql, connection, allDataTypesMapper);
 
 //          sql = """
 //    SET TEXTSIZE -1; -- Disable the 4096 byte limit
 //    SELECT * FROM dbo.AllDataTypes;
 //    """;
-//          asyncQueryFlatMap(sql, client, allDataTypesMapper);
-          //
+//          asyncQueryFlatMap(sql, connection, allDataTypesMapper);
+    //
 //              .bind("test_xml", io.r2dbc.mssql.MssqlType.XML.of("<root><node>Test XML</node></root>"));
-        // Or simply bind a String for XML if the driver version supports implicit conversion
-        String insertSql = """
-  INSERT INTO dbo.AllDataTypes (
-      test_bit, test_tinyint, test_smallint, test_int, test_bigint,
-      test_decimal, test_numeric, test_smallmoney, test_money,
-      test_real, test_float,
-      test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
-      test_char, test_varchar, test_varchar_max, test_text,
-      test_nchar, test_nvarchar, test_nvarchar_max,
-      test_binary, test_varbinary, test_varbinary_max, test_image,
-      test_guid, test_xml
-  ) VALUES (
-      @p0, @p1, @p2, @p3, @p4,
-      @p5, @p6, @p7, @p8,
-      @p9, @p10,
-      @p11, @p12, @p13, @p14, @p15, @p16,
-      @p17, @p18, @p19, @p20,
-      @p21, @p22, @p23,
-      @p24, @p25, @p26, @p27,
-      @p28, @p29
-  )
-""";
+    // Or simply bind a String for XML if the driver version supports implicit conversion
 
-        Statement statement = client.queryRpc(insertSql)
+    Statement statement = connection.createStatement(bindSql)
             // --- Exact Numerics ---
             .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))                        // test_bit
             .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))                  // test_tinyint
@@ -201,63 +243,63 @@ INSERT INTO dbo.AllDataTypes (
             .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))             // test_guid (Standard R2dbcType fallback)
             .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>")); // test_xml
 
-        rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
+    rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
+//
+//    statement = connection.createStatement(bindSql)
+//            // --- Exact Numerics ---
+//            .bind(0, true)                                      // test_bit
+//            .bind(1, (byte)255)                                      // test_tinyint
+//            .bind(2, (short) 32000)                             // test_smallint
+//            .bind(3, 2000000000)                                // test_int
+//            .bind(4, 9000000000000000000L)                      // test_bigint
+//            .bind(5, new BigDecimal("12345.6789"))              // test_decimal
+//            .bind(6, new BigDecimal("999.99"))                  // test_numeric
+//            .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
+//            .bind(8, new BigDecimal("922337203685477.58"))      // test_money
+//
+//            // --- Approximate Numerics ---
+//            .bind(9, 123.45f)                                   // test_real
+//            .bind(10, 123456789.987654321d)                     // test_float
+//
+//            // --- Date and Time ---
+//            .bind(11, LocalDate.of(2023, 12, 25))               // test_date
+//            .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
+//            .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
+//            .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
+//            .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
+//            .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
+//
+//            // --- Character Strings ---
+//            .bind(17, "FixedChar")                              // test_char
+//            .bind(18, "Variable Length String")                 // test_varchar
+//            .bind(19, "A".repeat(5000))                         // test_varchar_max
+//            .bind(20, "Legacy Text Data")                       // test_text
+//
+//            // --- Unicode Strings ---
+//            .bind(21, "FixedUni")                               // test_nchar
+//            .bind(22, "Unicode String")                         // test_nvarchar
+//            .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
+//
+//            // --- Binary Strings ---
+//            .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
+//            .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
+//            .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
+//            .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
+//
+//            // --- Other Data Types ---
+//            .bind(28, UUID.randomUUID())                        // test_guid
+//            .bind(29, "<root><node>Test XML</node></root>");    // test_xml
+//
+//    rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
 
-        statement = client.queryRpc(insertSql)
-            // --- Exact Numerics ---
-            .bind(0, true)                                      // test_bit
-            .bind(1, (byte)255)                                      // test_tinyint
-            .bind(2, (short) 32000)                             // test_smallint
-            .bind(3, 2000000000)                                // test_int
-            .bind(4, 9000000000000000000L)                      // test_bigint
-            .bind(5, new BigDecimal("12345.6789"))              // test_decimal
-            .bind(6, new BigDecimal("999.99"))                  // test_numeric
-            .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
-            .bind(8, new BigDecimal("922337203685477.58"))      // test_money
-
-            // --- Approximate Numerics ---
-            .bind(9, 123.45f)                                   // test_real
-            .bind(10, 123456789.987654321d)                     // test_float
-
-            // --- Date and Time ---
-            .bind(11, LocalDate.of(2023, 12, 25))               // test_date
-            .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
-            .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
-            .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
-            .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
-            .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
-
-            // --- Character Strings ---
-            .bind(17, "FixedChar")                              // test_char
-            .bind(18, "Variable Length String")                 // test_varchar
-            .bind(19, "A".repeat(5000))                         // test_varchar_max
-            .bind(20, "Legacy Text Data")                       // test_text
-
-            // --- Unicode Strings ---
-            .bind(21, "FixedUni")                               // test_nchar
-            .bind(22, "Unicode String")                         // test_nvarchar
-            .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
-
-            // --- Binary Strings ---
-            .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
-            .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
-            .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
-            .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
-
-            // --- Other Data Types ---
-            .bind(28, UUID.randomUUID())                        // test_guid
-            .bind(29, "<root><node>Test XML</node></root>");    // test_xml
-
-        rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
-
-        sql = """
-  SET TEXTSIZE -1; -- Disable the 4096 byte limit
-  SELECT * FROM dbo.AllDataTypes;
-  """;
-        asyncQueryFlatMap(sql, client, allDataTypesMapper);
+    String querySql = """
+SET TEXTSIZE -1; -- Disable the 4096 byte limit
+SELECT * FROM dbo.AllDataTypes;
+""";
+    asyncQueryFlatMap(querySql, connection, allDataTypesMapper);
 //            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
 
-//          Statement statement = client.queryRpc(sql)
+//          Statement statement = connection.queryRpc(sql)
 //                .bind("@p1", "Michael")
 //                .bind("@p2", "Thomas")
 //                .bind("@p3", "mt@mt.com")
@@ -269,14 +311,14 @@ INSERT INTO dbo.AllDataTypes (
 //            String sql = """
 //                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
 //                """;
-//          Statement statement = client.queryRpc(sql)
+//          Statement statement = connection.queryRpc(sql)
 //              .bind("@p1", 100L);
 //          rpcAsyncQueryFlapMap(statement, longMapper);
 //
 //            sql = """
 //                SELECT * FROM dbo.users WHERE postCount > @p1
 //                """;
-//            statement = client.queryRpc(sql)
+//            statement = connection.queryRpc(sql)
 //                .bind("@p1", 100L);
 //
 //            rpcAsyncQueryFlapMap(statement, dbRecordMapper);
@@ -284,12 +326,12 @@ INSERT INTO dbo.AllDataTypes (
 //          sql = """
 //                SELECT * FROM dbo.users WHERE postCount > @p1
 //                """;
-//          statement = client.queryRpc(sql)
+//          statement = connection.queryRpc(sql)
 //              .bind(1, 100L);
 //
 //          rpcAsyncQueryFlapMap(statement, dbRecordMapper);
 //
-        //            CountDownLatch latch = new CountDownLatch(1);
+    //            CountDownLatch latch = new CountDownLatch(1);
 //            // 1. The Source: A publisher of R2DBC Results
 //            statement.execute()            // If no error token was received, and SQL server did not close the connection, then the connection to the server is now established and the user is logged in.
   }
@@ -362,9 +404,9 @@ INSERT INTO dbo.AllDataTypes (
 //    return someEntity;
 //  };
 
-  private <T> void asyncQueryFlatMap(String sql, TdsConnectionImpl client, BiFunction<Row, RowMetadata, T> mapper) throws InterruptedException {
+  private <T> void asyncQueryFlatMap(String sql, Connection connection, BiFunction<Row, RowMetadata, T> mapper) throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    MappingProducer.from(client.queryAsync(sql).execute())
+    MappingProducer.from(connection.createStatement(sql).execute())
             .flatMap(result -> result.map(mapper))
             .subscribe(
                     System.out::println,
