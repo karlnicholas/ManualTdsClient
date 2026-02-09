@@ -2,8 +2,6 @@ package com.example;
 
 import io.r2dbc.spi.*;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -24,8 +22,6 @@ public class CSharpTdsClient {
     }
 
     private void run() throws Exception {
-        String hostname = "localhost";
-        int port = 1433;
 //        TdsConnectionImpl client = new TdsConnectionImpl(hostname, port);
 //          client.connect("localhost", "reactnonreact", "reactnonreact", "reactnonreact", "app", "MyServerName", "us_english");
 //            queryAsync("SELECT 1; SELECT 2;", client);
@@ -40,7 +36,7 @@ public class CSharpTdsClient {
               .build());
 
       System.out.println("Connecting to database... (connectionFactory)");
-      Publisher  <? extends Connection> connectionPublisher = connectionFactory.create();
+      Publisher<? extends Connection> connectionPublisher = connectionFactory.create();
 
       System.out.println("Connecting to database... (connectionPublisher)");
 
@@ -65,126 +61,7 @@ public class CSharpTdsClient {
       latch.await();
     }
 
-  String createSql = """
-DROP TABLE IF EXISTS dbo.AllDataTypes;
-
-CREATE TABLE dbo.AllDataTypes (
--- Identity / Primary Key
-id                  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-
--- Exact Numerics
-test_bit            BIT NOT NULL,
-test_tinyint        TINYINT NULL,
-test_smallint       SMALLINT NULL,
-test_int            INT NULL,
-test_bigint         BIGINT NULL,
-test_decimal        DECIMAL(18, 4) NULL,  -- Triggers PREC_SCALE logic
-test_numeric        NUMERIC(10, 2) NULL,
-test_smallmoney     SMALLMONEY NULL,
-test_money          MONEY NULL,
-
--- Approximate Numerics
-test_real           REAL NULL,            -- Maps to FLT4
-test_float          FLOAT NULL,           -- Maps to FLT8
-
--- Date and Time
-test_date           DATE NULL,
-test_time           TIME(7) NULL,
-test_datetime       DATETIME NULL,        -- Classic 8-byte datetime
-test_datetime2      DATETIME2(7) NULL,    -- High precision
-test_smalldatetime  SMALLDATETIME NULL,
-test_dtoffset       DATETIMEOFFSET(7) NULL,
-
--- Character Strings (Non-Unicode)
-test_char           CHAR(10) NULL,
-test_varchar        VARCHAR(50) NULL,
-test_varchar_max    VARCHAR(MAX) NULL,    -- Triggers PLP (Partially Length Prefixed)
-test_text           TEXT NULL,            -- Legacy LOB
-
--- Unicode Strings
-test_nchar          NCHAR(10) NULL,
-test_nvarchar       NVARCHAR(50) NULL,
-test_nvarchar_max   NVARCHAR(MAX) NULL,   -- Triggers PLP
-
--- Binary Strings
-test_binary         BINARY(8) NULL,
-test_varbinary      VARBINARY(50) NULL,
-test_varbinary_max  VARBINARY(MAX) NULL,  -- Triggers PLP
-test_image          IMAGE NULL,           -- Legacy LOB
-
--- Other
-test_guid           UNIQUEIDENTIFIER NULL,
-test_xml            XML NULL
-);
-        """;
-
-  String insertSql = """
--- Insert Test Data
-INSERT INTO dbo.AllDataTypes (
-test_bit, test_tinyint, test_smallint, test_int, test_bigint,
-test_decimal, test_numeric, test_smallmoney, test_money,
-test_real, test_float,
-test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
-test_char, test_varchar, test_varchar_max, test_text,
-test_nchar, test_nvarchar, test_nvarchar_max,
-test_binary, test_varbinary, test_varbinary_max, test_image,
-test_guid, test_xml
-) VALUES (
-1,                                      -- BIT
-255,                                    -- TINYINT
-32000,                                  -- SMALLINT
-2000000000,                             -- INT
-9000000000000000000,                    -- BIGINT
-12345.6789,                             -- DECIMAL
-999.99,                                 -- NUMERIC
-214.99,                                 -- SMALLMONEY
-922337203685477.58,                     -- MONEY
-123.45,                                 -- REAL
-123456789.987654321,                    -- FLOAT
-'2023-12-25',                           -- DATE
-'14:30:15.1234567',                     -- TIME
-'2023-12-25 14:30:00',                  -- DATETIME
-'2023-12-25 14:30:15.1234567',          -- DATETIME2
-'2023-12-25 14:30:00',                  -- SMALLDATETIME
-'2023-12-25 14:30:15.1234567 +05:30',   -- DATETIMEOFFSET
-'FixedChar',                            -- CHAR
-'Variable Length String',               -- VARCHAR
-REPLICATE('A', 5000),                   -- VARCHAR(MAX) (Large PLP)
-'Legacy Text Data',                     -- TEXT
-N'FixedUni',                            -- NCHAR
-N'Unicode String',                      -- NVARCHAR
-REPLICATE(N'あ', 4000),                  -- NVARCHAR(MAX) (Large PLP)
-0xDEADBEEF,                             -- BINARY
-0xCAFEBABE,                             -- VARBINARY
-0xFEEDBACC,                             -- VARBINARY(MAX)
-0x00112233,                             -- IMAGE
-NEWID(),                                -- GUID
-'<root><node>Test XML</node></root>'    -- XML
-);
-        """;
-
-  String bindSql = """
-INSERT INTO dbo.AllDataTypes (
-  test_bit, test_tinyint, test_smallint, test_int, test_bigint,
-  test_decimal, test_numeric, test_smallmoney, test_money,
-  test_real, test_float,
-  test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
-  test_char, test_varchar, test_varchar_max, test_text,
-  test_nchar, test_nvarchar, test_nvarchar_max,
-  test_binary, test_varbinary, test_varbinary_max, test_image,
-  test_guid, test_xml
-) VALUES (
-  @p0, @p1, @p2, @p3, @p4,
-  @p5, @p6, @p7, @p8,
-  @p9, @p10,
-  @p11, @p12, @p13, @p14, @p15, @p16,
-  @p17, @p18, @p19, @p20,
-  @p21, @p22, @p23,
-  @p24, @p25, @p26, @p27,
-  @p28, @p29
-)
-""";
-
+  @SuppressWarnings("JpaQueryApiInspection")
   private void runSql(Connection connection) throws InterruptedException {
     asyncQueryFlatMap(createSql, connection, allDataTypesMapper);
     asyncQueryFlatMap(insertSql, connection, allDataTypesMapper);
@@ -244,58 +121,54 @@ INSERT INTO dbo.AllDataTypes (
             .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>")); // test_xml
 
     rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
-//
-//    statement = connection.createStatement(bindSql)
-//            // --- Exact Numerics ---
-//            .bind(0, true)                                      // test_bit
-//            .bind(1, (byte)255)                                      // test_tinyint
-//            .bind(2, (short) 32000)                             // test_smallint
-//            .bind(3, 2000000000)                                // test_int
-//            .bind(4, 9000000000000000000L)                      // test_bigint
-//            .bind(5, new BigDecimal("12345.6789"))              // test_decimal
-//            .bind(6, new BigDecimal("999.99"))                  // test_numeric
-//            .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
-//            .bind(8, new BigDecimal("922337203685477.58"))      // test_money
-//
-//            // --- Approximate Numerics ---
-//            .bind(9, 123.45f)                                   // test_real
-//            .bind(10, 123456789.987654321d)                     // test_float
-//
-//            // --- Date and Time ---
-//            .bind(11, LocalDate.of(2023, 12, 25))               // test_date
-//            .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
-//            .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
-//            .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
-//            .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
-//            .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
-//
-//            // --- Character Strings ---
-//            .bind(17, "FixedChar")                              // test_char
-//            .bind(18, "Variable Length String")                 // test_varchar
-//            .bind(19, "A".repeat(5000))                         // test_varchar_max
-//            .bind(20, "Legacy Text Data")                       // test_text
-//
-//            // --- Unicode Strings ---
-//            .bind(21, "FixedUni")                               // test_nchar
-//            .bind(22, "Unicode String")                         // test_nvarchar
-//            .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
-//
-//            // --- Binary Strings ---
-//            .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
-//            .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
-//            .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
-//            .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
-//
-//            // --- Other Data Types ---
-//            .bind(28, UUID.randomUUID())                        // test_guid
-//            .bind(29, "<root><node>Test XML</node></root>");    // test_xml
-//
-//    rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
 
-    String querySql = """
-SET TEXTSIZE -1; -- Disable the 4096 byte limit
-SELECT * FROM dbo.AllDataTypes;
-""";
+    statement = connection.createStatement(bindSql)
+            // --- Exact Numerics ---
+            .bind(0, true)                                      // test_bit
+            .bind(1, (byte)255)                                      // test_tinyint
+            .bind(2, (short) 32000)                             // test_smallint
+            .bind(3, 2000000000)                                // test_int
+            .bind(4, 9000000000000000000L)                      // test_bigint
+            .bind(5, new BigDecimal("12345.6789"))              // test_decimal
+            .bind(6, new BigDecimal("999.99"))                  // test_numeric
+            .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
+            .bind(8, new BigDecimal("922337203685477.58"))      // test_money
+
+            // --- Approximate Numerics ---
+            .bind(9, 123.45f)                                   // test_real
+            .bind(10, 123456789.987654321d)                     // test_float
+
+            // --- Date and Time ---
+            .bind(11, LocalDate.of(2023, 12, 25))               // test_date
+            .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
+            .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
+            .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
+            .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
+            .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
+
+            // --- Character Strings ---
+            .bind(17, "FixedChar")                              // test_char
+            .bind(18, "Variable Length String")                 // test_varchar
+            .bind(19, "A".repeat(5000))                         // test_varchar_max
+            .bind(20, "Legacy Text Data")                       // test_text
+
+            // --- Unicode Strings ---
+            .bind(21, "FixedUni")                               // test_nchar
+            .bind(22, "Unicode String")                         // test_nvarchar
+            .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
+
+            // --- Binary Strings ---
+            .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
+            .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
+            .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
+            .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
+
+            // --- Other Data Types ---
+            .bind(28, UUID.randomUUID())                        // test_guid
+            .bind(29, "<root><node>Test XML</node></root>");    // test_xml
+
+    rpcAsyncQueryFlapMap(statement, allDataTypesMapper);
+
     asyncQueryFlatMap(querySql, connection, allDataTypesMapper);
 //            sql = "INSERT INTO dbo.users (firstName, lastName, email, postCount) VALUES (@p1, @p2, @p3, @p4)";
 
@@ -433,6 +306,131 @@ SELECT * FROM dbo.AllDataTypes;
             );
     latch.await();
   }
+  private static final String createSql = """
+DROP TABLE IF EXISTS dbo.AllDataTypes;
+
+CREATE TABLE dbo.AllDataTypes (
+-- Identity / Primary Key
+id                  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+
+-- Exact Numerics
+test_bit            BIT NOT NULL,
+test_tinyint        TINYINT NULL,
+test_smallint       SMALLINT NULL,
+test_int            INT NULL,
+test_bigint         BIGINT NULL,
+test_decimal        DECIMAL(18, 4) NULL,  -- Triggers PREC_SCALE logic
+test_numeric        NUMERIC(10, 2) NULL,
+test_smallmoney     SMALLMONEY NULL,
+test_money          MONEY NULL,
+
+-- Approximate Numerics
+test_real           REAL NULL,            -- Maps to FLT4
+test_float          FLOAT NULL,           -- Maps to FLT8
+
+-- Date and Time
+test_date           DATE NULL,
+test_time           TIME(7) NULL,
+test_datetime       DATETIME NULL,        -- Classic 8-byte datetime
+test_datetime2      DATETIME2(7) NULL,    -- High precision
+test_smalldatetime  SMALLDATETIME NULL,
+test_dtoffset       DATETIMEOFFSET(7) NULL,
+
+-- Character Strings (Non-Unicode)
+test_char           CHAR(10) NULL,
+test_varchar        VARCHAR(50) NULL,
+test_varchar_max    VARCHAR(MAX) NULL,    -- Triggers PLP (Partially Length Prefixed)
+test_text           TEXT NULL,            -- Legacy LOB
+
+-- Unicode Strings
+test_nchar          NCHAR(10) NULL,
+test_nvarchar       NVARCHAR(50) NULL,
+test_nvarchar_max   NVARCHAR(MAX) NULL,   -- Triggers PLP
+
+-- Binary Strings
+test_binary         BINARY(8) NULL,
+test_varbinary      VARBINARY(50) NULL,
+test_varbinary_max  VARBINARY(MAX) NULL,  -- Triggers PLP
+test_image          IMAGE NULL,           -- Legacy LOB
+
+-- Other
+test_guid           UNIQUEIDENTIFIER NULL,
+test_xml            XML NULL
+);
+""";
+
+  private static final String insertSql = """
+-- Insert Test Data
+INSERT INTO dbo.AllDataTypes (
+test_bit, test_tinyint, test_smallint, test_int, test_bigint,
+test_decimal, test_numeric, test_smallmoney, test_money,
+test_real, test_float,
+test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
+test_char, test_varchar, test_varchar_max, test_text,
+test_nchar, test_nvarchar, test_nvarchar_max,
+test_binary, test_varbinary, test_varbinary_max, test_image,
+test_guid, test_xml
+) VALUES (
+1,                                      -- BIT
+255,                                    -- TINYINT
+32000,                                  -- SMALLINT
+2000000000,                             -- INT
+9000000000000000000,                    -- BIGINT
+12345.6789,                             -- DECIMAL
+999.99,                                 -- NUMERIC
+214.99,                                 -- SMALLMONEY
+922337203685477.58,                     -- MONEY
+123.45,                                 -- REAL
+123456789.987654321,                    -- FLOAT
+'2023-12-25',                           -- DATE
+'14:30:15.1234567',                     -- TIME
+'2023-12-25 14:30:00',                  -- DATETIME
+'2023-12-25 14:30:15.1234567',          -- DATETIME2
+'2023-12-25 14:30:00',                  -- SMALLDATETIME
+'2023-12-25 14:30:15.1234567 +05:30',   -- DATETIMEOFFSET
+'FixedChar',                            -- CHAR
+'Variable Length String',               -- VARCHAR
+REPLICATE('A', 5000),                   -- VARCHAR(MAX) (Large PLP)
+'Legacy Text Data',                     -- TEXT
+N'FixedUni',                            -- NCHAR
+N'Unicode String',                      -- NVARCHAR
+REPLICATE(N'あ', 4000),                  -- NVARCHAR(MAX) (Large PLP)
+0xDEADBEEF,                             -- BINARY
+0xCAFEBABE,                             -- VARBINARY
+0xFEEDBACC,                             -- VARBINARY(MAX)
+0x00112233,                             -- IMAGE
+NEWID(),                                -- GUID
+'<root><node>Test XML</node></root>'    -- XML
+);
+""";
+
+  private static final String bindSql = """
+INSERT INTO dbo.AllDataTypes (
+  test_bit, test_tinyint, test_smallint, test_int, test_bigint,
+  test_decimal, test_numeric, test_smallmoney, test_money,
+  test_real, test_float,
+  test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset,
+  test_char, test_varchar, test_varchar_max, test_text,
+  test_nchar, test_nvarchar, test_nvarchar_max,
+  test_binary, test_varbinary, test_varbinary_max, test_image,
+  test_guid, test_xml
+) VALUES (
+  @p0, @p1, @p2, @p3, @p4,
+  @p5, @p6, @p7, @p8,
+  @p9, @p10,
+  @p11, @p12, @p13, @p14, @p15, @p16,
+  @p17, @p18, @p19, @p20,
+  @p21, @p22, @p23,
+  @p24, @p25, @p26, @p27,
+  @p28, @p29
+)
+""";
+  private static final String querySql = """
+SET TEXTSIZE -1; -- Disable the 4096 byte limit
+SELECT * FROM dbo.AllDataTypes;
+""";
+
+
 
 }
 
