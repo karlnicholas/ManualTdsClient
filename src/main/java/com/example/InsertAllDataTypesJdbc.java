@@ -100,7 +100,7 @@ public class InsertAllDataTypesJdbc {
 
 // --- Exact Numerics ---
       ps.setBoolean(1, true);                                      // test_bit
-      ps.setShort(2, (short) 255);                                 // test_tinyint (Use Short for 0-255 range)
+      ps.setByte(2, (byte) 255);                                 // test_tinyint (Use Short for 0-255 range)
       ps.setShort(3, (short) 32000);                               // test_smallint
       ps.setInt(4, 2000000000);                                    // test_int
       ps.setLong(5, 9000000000000000000L);                         // test_bigint
