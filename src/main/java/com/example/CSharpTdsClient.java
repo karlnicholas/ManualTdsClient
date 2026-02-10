@@ -180,13 +180,18 @@ public class CSharpTdsClient {
 //
 //          rpcAsyncQueryFlapMap(statement, longMapper);
 //
-////          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+//          SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
 //            String sql = """
 //                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
 //                """;
-//          Statement statement = connection.queryRpc(sql)
-//              .bind("@p1", 100L);
-//          rpcAsyncQueryFlapMap(statement, longMapper);
+    String sql = """
+SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+""";
+
+          statement = connection.createStatement(sql)
+              .bind("@p1", Parameters.in(R2dbcType.BIGINT, 100L))
+              .bind("@retval", Parameters.out(R2dbcType.BIGINT));
+          rpcAsyncQueryFlapMap(statement, longMapper);
 //
 //            sql = """
 //                SELECT * FROM dbo.users WHERE postCount > @p1
