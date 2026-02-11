@@ -1,9 +1,6 @@
 package com.example;
 
-import io.r2dbc.spi.Statement;
-
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;

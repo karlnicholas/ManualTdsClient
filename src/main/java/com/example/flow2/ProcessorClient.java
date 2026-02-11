@@ -1,8 +1,6 @@
 package com.example.flow2;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Flow;
-import java.util.function.Function;
 
 public class ProcessorClient {
   public static void main(String[] args) throws InterruptedException {

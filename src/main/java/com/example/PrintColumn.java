@@ -1,15 +1,5 @@
 package com.example;
 
-import io.r2dbc.spi.ColumnMetadata;
-import io.r2dbc.spi.Result;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
-
 public class PrintColumn {
 
 //  /**

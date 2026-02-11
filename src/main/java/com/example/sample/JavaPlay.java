@@ -1,7 +1,6 @@
 package com.example.sample;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Flow;
 
 public class JavaPlay {
   public static void main(String[] args) throws InterruptedException {

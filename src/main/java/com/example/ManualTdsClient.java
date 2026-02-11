@@ -8,9 +8,6 @@ package com.example;
 //import com.microsoft.data.tools.tdslib.payloads.prelogin.EncryptionType;
 //import com.microsoft.data.tools.tdslib.payloads.prelogin.PreLoginPayload;
 
-import java.nio.ByteBuffer;
-import java.util.HexFormat;
-
 public class ManualTdsClient {
 
 //    public static void main(String[] args) {
