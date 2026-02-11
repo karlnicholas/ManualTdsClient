@@ -4,260 +4,250 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class MappingProducer<T> implements Flow.Publisher<T> {
   private final Flow.Publisher<T> source;
+  private final String name;
+  private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
 
-  private MappingProducer(Flow.Publisher<T> source) {
+  private MappingProducer(Flow.Publisher<T> source, String name) {
     this.source = source;
+    this.name = name;
   }
 
-  // -----------------------------------------------------------
-  // 1. FACTORY: FROM (Direct Copy - No Changes)
-  // -----------------------------------------------------------
-  public static <T> MappingProducer<T> from(Flow.Publisher<T> source) {
-    return new MappingProducer<>(source);
-  }
-
-  // -----------------------------------------------------------
-  // 2. FACTORY: JUST (Synchronous Fix)
-  // FIXED: Removed heavy thread creation per request.
-  // -----------------------------------------------------------
-  public static <T> MappingProducer<T> just(T value) {
-    return new MappingProducer<>(subscriber -> {
-      subscriber.onSubscribe(new Flow.Subscription() {
-        private final AtomicBoolean executed = new AtomicBoolean(false);
-        private volatile boolean cancelled = false;
-
-        @Override
-        public void request(long n) {
-          if (n > 0 && !cancelled && executed.compareAndSet(false, true)) {
-             ExecutorService executor = Executors.newSingleThreadExecutor();
-             executor.submit(() -> {
-               if (!cancelled) {
-                 try {
-                   subscriber.onNext(value);
-                   if (!cancelled) subscriber.onComplete();
-                 } catch (Throwable t) {
-                   subscriber.onError(t);
-                 }
-               }
-               executor.shutdown();
-             });
-
-            // OPTIMIZED: Synchronous emission is standard for 'just'
-            // unless we strictly need to change threads (which requires a shared Scheduler).
-//            try {
-//              subscriber.onNext(value);
-//              if (!cancelled) subscriber.onComplete();
-//            } catch (Throwable t) {
-//              subscriber.onError(t);
-//            }
-          }
-        }
-
-        @Override public void cancel() { cancelled = true; }
-      });
-    });
-  }
-
-  // -----------------------------------------------------------
-  // 3. OPERATOR: MAP (Direct Copy - No Changes)
-  // Since map is linear, simple delegation is 100% correct here.
-  // -----------------------------------------------------------
-  public <R> MappingProducer<R> map(Function<T, R> mapper) {
-    Flow.Publisher<R> mappedSource = downstream -> source.subscribe(new Flow.Subscriber<T>() {
-      @Override
-      public void onSubscribe(Flow.Subscription s) {
-        downstream.onSubscribe(s);
-      }
-
-      @Override
-      public void onNext(T item) {
-        try {
-          R result = mapper.apply(item);
-          downstream.onNext(result);
-        } catch (Throwable t) {
-          downstream.onError(t);
-        }
-      }
-
-      @Override public void onError(Throwable t) { downstream.onError(t); }
-      @Override public void onComplete() { downstream.onComplete(); }
-    });
-
-    return new MappingProducer<>(mappedSource);
-  }
-
-  // -----------------------------------------------------------
-  // 4. OPERATOR: FLATMAP (The "Arbiter" Version)
-  // FIXED: Logic updated to act as a proper "ConcatMap" (Sequence of Publishers)
-  // -----------------------------------------------------------
-  public <R> MappingProducer<R> flatMap(Function<T, Flow.Publisher<R>> mapper) {
-    return new MappingProducer<>(downstream -> {
-      // Use the Arbiter to safely coordinate the main source and the inner source
-      FlatMapSubscriber<T, R> arbiter = new FlatMapSubscriber<>(downstream, mapper);
-      source.subscribe(arbiter);
-    });
-  }
-
-  // Overload: Success Consumer + Error Consumer
-  public void subscribe(Consumer<T> onNext, Consumer<Throwable> onError) {
-    this.subscribe(onNext, onError, () -> {});
-  }
-
-  // Full Overload: Success + Error + Completion
-  public void subscribe(Consumer<T> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-    this.subscribe(new Flow.Subscriber<T>() {
-      @Override
-      public void onSubscribe(Flow.Subscription s) {
-        s.request(Long.MAX_VALUE);
-      }
-
-      @Override
-      public void onNext(T item) {
-        onNext.accept(item);
-      }
-
-      @Override
-      public void onError(Throwable t) {
-        onError.accept(t);
-      }
-
-      @Override
-      public void onComplete() {
-        onComplete.run();
-      }
-    });
-  }
-
-  // -----------------------------------------------------------
-  // INNER CLASS: THE ARBITER (Required for flatMap)
-  // -----------------------------------------------------------
-  private static class FlatMapSubscriber<T, R> implements Flow.Subscriber<T>, Flow.Subscription {
-    private final Flow.Subscriber<? super R> downstream;
-    private final Function<T, Flow.Publisher<R>> mapper;
-
-    private Flow.Subscription mainSubscription;
-    private final AtomicReference<Flow.Subscription> innerSubscription = new AtomicReference<>();
-    private final AtomicLong requested = new AtomicLong(0);
-    private final AtomicBoolean isCancelled = new AtomicBoolean(false);
-
-    // ADDED: State tracking to handle stream completion correctly
-    private volatile boolean mainDone = false;
-
-    FlatMapSubscriber(Flow.Subscriber<? super R> downstream, Function<T, Flow.Publisher<R>> mapper) {
-      this.downstream = downstream;
-      this.mapper = mapper;
-    }
-
-    // --- Downstream calls this (The Subscription we give them) ---
-    @Override
-    public void request(long n) {
-      if (n <= 0) return;
-      requested.addAndGet(n);
-
-      Flow.Subscription inner = innerSubscription.get();
-      if (inner != null) {
-        inner.request(n);
-      } else if (mainSubscription != null) {
-        // If no inner yet, ask main source for the item to start the flatMap process
-        mainSubscription.request(1);
-      }
-    }
-
-    @Override
-    public void cancel() {
-      isCancelled.set(true);
-      if (mainSubscription != null) mainSubscription.cancel();
-      Flow.Subscription inner = innerSubscription.get();
-      if (inner != null) inner.cancel();
-    }
-
-    // --- Main Source calls this ---
-    @Override
-    public void onSubscribe(Flow.Subscription s) {
-      this.mainSubscription = s;
-      downstream.onSubscribe(this); // Handshake with downstream
-    }
-
-    @Override
-    public void onNext(T item) {
-      if (isCancelled.get()) return;
-      try {
-        Flow.Publisher<R> innerPub = mapper.apply(item);
-
-        // Subscribe to the inner publisher
-        innerPub.subscribe(new Flow.Subscriber<R>() {
-          @Override
-          public void onSubscribe(Flow.Subscription s) {
-            if (innerSubscription.compareAndSet(null, s)) {
-              long r = requested.get();
-              if (r > 0) s.request(r);
-            }
-          }
-          @Override public void onNext(R item) {
-            // Decrement requested if necessary, but for now simple pass-through
-            downstream.onNext(item);
-          }
-          @Override public void onError(Throwable t) {
-            // Error terminates everything
-            downstream.onError(t);
-          }
-          @Override public void onComplete() {
-            // BUG FIX: Do NOT complete downstream yet.
-            // downstream.onComplete();
-
-            // Clear the inner subscription so we can accept a new one
-            innerSubscription.set(null);
-
-            if (mainDone) {
-              // If main is also done, THEN we are finished.
-              downstream.onComplete();
-            } else {
-              // Otherwise, ask main for the NEXT Publisher
-              mainSubscription.request(1);
-            }
-          }
-        });
-      } catch (Throwable t) {
-        cancel();
-        onError(t);
-      }
-    }
-
-    @Override public void onError(Throwable t) { downstream.onError(t); }
-
-    @Override public void onComplete() {
-      // Main source is done.
-      mainDone = true;
-      // If we have no active inner subscription, we can finish now.
-      if (innerSubscription.get() == null) {
-        downstream.onComplete();
-      }
-      // If inner is still running, let it finish. Its onComplete will see mainDone=true.
-      /* Wait for inner to complete */
-    }
-  }
-
-  // -----------------------------------------------------------
-  // CONVENIENCE: SUBSCRIBE
-  // -----------------------------------------------------------
-  public void subscribe(Consumer<T> consumer) {
-    this.subscribe(new Flow.Subscriber<T>() {
-      @Override public void onSubscribe(Flow.Subscription s) { s.request(Long.MAX_VALUE); }
-      @Override public void onNext(T item) { consumer.accept(item); }
-      @Override public void onError(Throwable t) { t.printStackTrace(); }
-      @Override public void onComplete() { }
-    });
+  private static void log(String prefix, String message) {
+    System.out.printf("[%s] %-20s : %s%n", Thread.currentThread().getName(), prefix, message);
   }
 
   @Override
   public void subscribe(Flow.Subscriber<? super T> subscriber) {
     source.subscribe(subscriber);
+  }
+
+  // =================================================================================
+  // 1. JUST (The Source)
+  // =================================================================================
+  public static <T> MappingProducer<T> just(T value) {
+    String opName = "Source-Just(" + value + ")";
+    log("Assembly", "Creating " + opName);
+
+    // No anonymous class here. We use the explicit 'JustPublisher'.
+    JustPublisher<T> publisher = new JustPublisher<>(value, opName);
+
+    return new MappingProducer<>(publisher, opName);
+  }
+
+  // --- Explicit Classes for 'Just' ---
+
+  // The Publisher
+  private static class JustPublisher<T> implements Flow.Publisher<T> {
+    private final T value;
+    private final String opName;
+
+    public JustPublisher(T value, String opName) {
+      this.value = value;
+      this.opName = opName;
+    }
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super T> subscriber) {
+      log("Subscribe", opName + " received subscription request");
+      // Pass dependencies manually to the Subscription
+      subscriber.onSubscribe(new JustSubscription<>(subscriber, value, opName));
+    }
+  }
+
+  // The Subscription
+  private static class JustSubscription<T> implements Flow.Subscription {
+    private final Flow.Subscriber<? super T> subscriber;
+    private final T value;
+    private final String opName;
+    private final AtomicBoolean executed = new AtomicBoolean(false);
+    private volatile boolean cancelled = false;
+
+    public JustSubscription(Flow.Subscriber<? super T> subscriber, T value, String opName) {
+      this.subscriber = subscriber;
+      this.value = value;
+      this.opName = opName;
+    }
+
+    @Override
+    public void request(long n) {
+      log("Request", opName + " request(" + n + ")");
+      if (n > 0 && !cancelled && executed.compareAndSet(false, true)) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        log("Execution", opName + " submitting task to Executor");
+
+        // Pass dependencies manually to the Task
+        executor.submit(new JustEmissionTask<>(subscriber, value, opName, executor, this));
+      }
+    }
+
+    @Override
+    public void cancel() {
+      log("Cancel", opName + " cancelled");
+      cancelled = true;
+    }
+
+    public boolean isCancelled() { return cancelled; }
+  }
+
+  // The Runnable Task
+  private static class JustEmissionTask<T> implements Runnable {
+    private final Flow.Subscriber<? super T> subscriber;
+    private final T value;
+    private final String opName;
+    private final ExecutorService executor;
+    private final JustSubscription<T> parent;
+
+    public JustEmissionTask(Flow.Subscriber<? super T> sub, T val, String name, ExecutorService exec, JustSubscription<T> parent) {
+      this.subscriber = sub;
+      this.value = val;
+      this.opName = name;
+      this.executor = exec;
+      this.parent = parent;
+    }
+
+    @Override
+    public void run() {
+      log("Async-Task", opName + " starting emission");
+      if (!parent.isCancelled()) {
+        try {
+          log("Async-Task", opName + " pushing onNext(" + value + ")");
+          subscriber.onNext(value);
+          if (!parent.isCancelled()) {
+            log("Async-Task", opName + " pushing onComplete()");
+            subscriber.onComplete();
+          }
+        } catch (Throwable t) {
+          subscriber.onError(t);
+        }
+      }
+      executor.shutdown();
+    }
+  }
+
+  // =================================================================================
+  // 2. MAP (The Operator)
+  // =================================================================================
+  public <R> MappingProducer<R> map(Function<T, R> mapper) {
+    String opName = "MapOp-" + ID_COUNTER.getAndIncrement();
+    log("Assembly", "Creating " + opName + " wrapping " + this.name);
+
+    // We explicitly pass 'this' (the upstream source) into the new Publisher
+    MapPublisher<T, R> mappedSource = new MapPublisher<>(this, mapper, opName);
+
+    return new MappingProducer<>(mappedSource, opName);
+  }
+
+  // --- Explicit Classes for 'Map' ---
+
+  // The Publisher (The Decorator)
+  private static class MapPublisher<T, R> implements Flow.Publisher<R> {
+    private final Flow.Publisher<T> upstream; // The "Captured" Source
+    private final Function<T, R> mapper;      // The "Captured" Function
+    private final String opName;
+
+    public MapPublisher(Flow.Publisher<T> upstream, Function<T, R> mapper, String opName) {
+      this.upstream = upstream;
+      this.mapper = mapper;
+      this.opName = opName;
+    }
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super R> downstream) {
+      log("Subscribe", opName + " received subscription request");
+
+      // We create the Middleman (Subscriber) and connect it to Upstream
+      upstream.subscribe(new MapSubscriber<>(downstream, mapper, opName));
+    }
+  }
+
+  // The Subscriber (The Middleman)
+  private static class MapSubscriber<T, R> implements Flow.Subscriber<T> {
+    private final Flow.Subscriber<? super R> downstream; // The "Captured" Downstream
+    private final Function<T, R> mapper;
+    private final String opName;
+
+    public MapSubscriber(Flow.Subscriber<? super R> downstream, Function<T, R> mapper, String opName) {
+      this.downstream = downstream;
+      this.mapper = mapper;
+      this.opName = opName;
+    }
+
+    @Override
+    public void onSubscribe(Flow.Subscription s) {
+      log("onSubscribe", opName + " passing subscription downstream");
+      downstream.onSubscribe(s);
+    }
+
+    @Override
+    public void onNext(T item) {
+      try {
+        log("onNext", opName + " received: " + item);
+        R result = mapper.apply(item);
+        log("onNext", opName + " transformed " + item + " -> " + result);
+        downstream.onNext(result);
+      } catch (Throwable t) {
+        log("onError", opName + " transformation failed");
+        downstream.onError(t);
+      }
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      log("onError", opName + " passing error downstream");
+      downstream.onError(t);
+    }
+
+    @Override
+    public void onComplete() {
+      log("onComplete", opName + " passing complete downstream");
+      downstream.onComplete();
+    }
+  }
+
+  // =================================================================================
+  // 3. SUBSCRIBE (The Convenience Method)
+  // =================================================================================
+  public void subscribe(Consumer<T> consumer) {
+    log("Subscribe", "User called subscribe()");
+    this.subscribe(new EndSubscriber<>(consumer));
+  }
+
+  // The Final Subscriber
+  private static class EndSubscriber<T> implements Flow.Subscriber<T> {
+    private final Consumer<T> consumer;
+    private final String subName = "Final-Subscriber";
+
+    public EndSubscriber(Consumer<T> consumer) {
+      this.consumer = consumer;
+    }
+
+    @Override
+    public void onSubscribe(Flow.Subscription s) {
+      log("onSubscribe", subName + " received subscription. Requesting MAX.");
+      s.request(Long.MAX_VALUE);
+    }
+
+    @Override
+    public void onNext(T item) {
+      log("onNext", subName + " received value: " + item);
+      consumer.accept(item);
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      log("onError", subName + " received error");
+      t.printStackTrace();
+    }
+
+    @Override
+    public void onComplete() {
+      log("onComplete", subName + " completed");
+    }
   }
 }

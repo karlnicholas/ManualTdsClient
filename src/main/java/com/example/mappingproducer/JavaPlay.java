@@ -17,25 +17,19 @@ public class JavaPlay {
     System.out.println("Main Thread Start: " + Thread.currentThread().getName());
 
     MappingProducer.just(1)
-        .flatMap(i -> MappingProducer.just(i + 1))
         .map(i -> i + 1)
-//        .map(i -> {
-//          throw new IllegalArgumentException("XXX");
-//        })
-        .subscribe(
-            i -> System.out.println("Value: " + i),       // onNext
-            err -> System.err.println("Caught: " + err.getMessage()) // onError
-        );
+        .map(i -> i + 1)
+        .subscribe(i -> System.out.println("Value: " + i));
 
     System.out.println("Main Thread End");
 
   }
 
-  private void run() throws InterruptedException {
-    IntegerPublisher publisher = new IntegerPublisher();
-
-    MappingProducer.from(publisher).map(i->i+1).map(i->i+1).subscribe(System.out::println);
-
-    }
+//  private void run() throws InterruptedException {
+//    IntegerPublisher publisher = new IntegerPublisher();
+//
+//    MappingProducer.from(publisher).map(i->i+1).map(i->i+1).subscribe(System.out::println);
+//
+//    }
 
 }
