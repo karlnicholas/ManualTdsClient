@@ -101,6 +101,11 @@ public class NioClientPublisher implements Flow.Publisher<ByteBuffer>, AutoClose
                 currentSubscription.complete();
               }
             } else if (read == -1) {
+              // Server closed connection
+              // If we have a subscriber waiting, notify them of the error
+              if (currentSubscriber != null) {
+                currentSubscriber.onError(new java.io.EOFException("Server closed connection"));
+              }
               close();
             }
           }
