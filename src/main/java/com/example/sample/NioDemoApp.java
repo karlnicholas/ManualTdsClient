@@ -1,61 +1,68 @@
 package com.example.sample;
 
-import java.net.InetSocketAddress;
-import java.nio.channels.AsynchronousSocketChannel;
-import java.util.concurrent.Flow;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Flow;
 
 public class NioDemoApp {
   public static void main(String[] args) throws Exception {
     int PORT = 9999;
 
-    // 1. Start the simple Server in a separate thread
-    Thread serverThread = new Thread(new NioOneShotServer(PORT));
+    // 1. Start Server
+    // We keep a reference to the server instance to stop it later
+    NioServer server = new NioServer(PORT);
+    Thread serverThread = new Thread(server);
     serverThread.start();
+    Thread.sleep(500);
 
-    // Give server a moment to start
-    Thread.sleep(100);
+    // 2. Create Client Publisher
+    try (NioClientPublisher publisher = new NioClientPublisher(PORT)) {
 
-    // 2. Setup the Client Channel (Async)
-    AsynchronousSocketChannel client = AsynchronousSocketChannel.open();
-    client.connect(new InetSocketAddress("localhost", PORT)).get(); // Wait for connection
+      // We will run 3 subscribers sequentially
+      for (int i = 1; i <= 3; i++) {
+        CountDownLatch latch = new CountDownLatch(1);
+        String subName = "Subscriber-" + i;
 
-    // 3. Create the Publisher
-    NioOneShotPublisher publisher = new NioOneShotPublisher(client);
+        System.out.println("\n[App] Starting " + subName);
 
-    // 4. Create a Subscriber
-    // We use a Latch to keep main thread alive until done
-    CountDownLatch latch = new CountDownLatch(1);
+        publisher.subscribe(new Flow.Subscriber<>() {
+          @Override
+          public void onSubscribe(Flow.Subscription subscription) {
+            System.out.println("[" + subName + "] Subscribed. Requesting data...");
+            subscription.request(1);
+          }
 
-    publisher.subscribe(new Flow.Subscriber<String>() {
-      @Override
-      public void onSubscribe(Flow.Subscription subscription) {
-        System.out.println("[Client] Subscribed. Requesting data...");
-        subscription.request(1);
+          @Override
+          public void onNext(ByteBuffer item) {
+            byte[] bytes = new byte[item.remaining()];
+            item.get(bytes);
+            String msg = new String(bytes, StandardCharsets.UTF_8);
+            System.out.println("[" + subName + "] Received: " + msg);
+          }
+
+          @Override
+          public void onError(Throwable throwable) {
+            throwable.printStackTrace();
+            latch.countDown();
+          }
+
+          @Override
+          public void onComplete() {
+            System.out.println("[" + subName + "] Finished.");
+            latch.countDown();
+          }
+        });
+
+        latch.await();
+        Thread.sleep(200);
       }
+    } // Publisher closes here automatically
 
-      @Override
-      public void onNext(String item) {
-        System.out.println("[Client] Received: " + item);
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        throwable.printStackTrace();
-        latch.countDown();
-      }
-
-      @Override
-      public void onComplete() {
-        System.out.println("[Client] Done.");
-        latch.countDown();
-      }
-    });
-
-    // 5. Wait for the async process to finish
-    latch.await();
-
-    // Cleanup
-    if(client.isOpen()) client.close();
+    // 3. Shutdown Server
+    System.out.println("\n[App] Shutting down server...");
+    server.stop();
+    serverThread.join(); // Wait for server thread to die
+    System.out.println("[App] Done.");
   }
 }
