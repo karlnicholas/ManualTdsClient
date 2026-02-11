@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
@@ -185,13 +187,14 @@ public class CSharpTdsClient {
 //                SELECT COUNT(*) FROM dbo.users WHERE postCount > @p1
 //                """;
     String sql = """
-SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
+SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users
 """;
 
           statement = connection.createStatement(sql)
-              .bind("@p1", Parameters.in(R2dbcType.BIGINT, 100L))
-              .bind("@retval", Parameters.out(R2dbcType.BIGINT));
-          rpcAsyncQueryFlapMap(statement, longMapper);
+              .bind("@count", Parameters.out(R2dbcType.BIGINT))
+              .bind("@sum", Parameters.out(R2dbcType.BIGINT))
+              .bind("@average", Parameters.out(R2dbcType.BIGINT));
+          rpcAsyncQueryFlapMap(statement, rvMapper);
 //
 //            sql = """
 //                SELECT * FROM dbo.users WHERE postCount > @p1
@@ -275,6 +278,13 @@ SELECT @retval = COUNT(*) FROM dbo.users WHERE postCount > @p1
 
   BiFunction<Row, RowMetadata, Long> longMapper =  (row, meta) -> row.get(0, Long.class);
 
+  BiFunction<Row, RowMetadata, List<Long>> rvMapper =  (row, meta) -> {
+    List<Long> returnValues = new ArrayList<>();
+    returnValues.add(row.get(0, Long.class));
+    returnValues.add(row.get(1, Long.class));
+    returnValues.add(row.get(2, Long.class));
+    return returnValues;
+  };
   //  private final BiFunction<Row, RowMetadata, SomeEntity> mapper = (row, meta) -> {
 //    SomeEntity someEntity = new SomeEntity();
 //    someEntity.setId(row.get("id", Long.class));
