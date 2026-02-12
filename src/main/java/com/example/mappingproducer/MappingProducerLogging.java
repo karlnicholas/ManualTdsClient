@@ -134,7 +134,7 @@ public class MappingProducerLogging<T> implements Flow.Publisher<T> {
   // CONVENIENCE: SUBSCRIBE (Consumer)
   // -----------------------------------------------------------
   public void subscribe(Consumer<T> consumer) {
-    String subName = "Final-Subscriber";
+    String subName = "Final-ClientSubscriber";
     log("Subscribe", "User called subscribe()");
 
     this.subscribe(new Flow.Subscriber<T>() {

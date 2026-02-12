@@ -9,6 +9,18 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class MappingProducer<T> implements Flow.Publisher<T> {
+
+  public static void main(String[] args) {
+    System.out.println("Main Thread Start: " + Thread.currentThread().getName());
+
+    MappingProducer.just(1)
+        .map(i -> i + 1)
+        .subscribe(i -> System.out.println("Value: " + i));
+
+    System.out.println("Main Thread End");
+
+  }
+
   private final Flow.Publisher<T> source;
   private final String name;
   private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
@@ -55,12 +67,12 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
     @Override
     public void subscribe(Flow.Subscriber<? super T> subscriber) {
       log("Subscribe", opName + " received subscription request");
-      // Pass dependencies manually to the Subscription
+      // Pass dependencies manually to the JustSubscription
       subscriber.onSubscribe(new JustSubscription<>(subscriber, value, opName));
     }
   }
 
-  // The Subscription
+  // The JustSubscription
   private static class JustSubscription<T> implements Flow.Subscription {
     private final Flow.Subscriber<? super T> subscriber;
     private final T value;
@@ -161,12 +173,12 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
     public void subscribe(Flow.Subscriber<? super R> downstream) {
       log("Subscribe", opName + " received subscription request");
 
-      // We create the Middleman (Subscriber) and connect it to Upstream
+      // We create the Middleman (ClientSubscriber) and connect it to Upstream
       upstream.subscribe(new MapSubscriber<>(downstream, mapper, opName));
     }
   }
 
-  // The Subscriber (The Middleman)
+  // The ClientSubscriber (The Middleman)
   private static class MapSubscriber<T, R> implements Flow.Subscriber<T> {
     private final Flow.Subscriber<? super R> downstream; // The "Captured" Downstream
     private final Function<T, R> mapper;
@@ -218,10 +230,10 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
     this.subscribe(new EndSubscriber<>(consumer));
   }
 
-  // The Final Subscriber
+  // The Final ClientSubscriber
   private static class EndSubscriber<T> implements Flow.Subscriber<T> {
     private final Consumer<T> consumer;
-    private final String subName = "Final-Subscriber";
+    private final String subName = "Final-ClientSubscriber";
 
     public EndSubscriber(Consumer<T> consumer) {
       this.consumer = consumer;

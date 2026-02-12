@@ -9,12 +9,12 @@ import java.util.function.Function;
  * The Main class implements an application that reads lines from the standard input
  * and prints them to the standard output.
  */
-public class JavaPlay {
+public class FlowPubSubMapPubSub {
   /**
    * Iterate through each line of input.
    */
   public static void main(String[] args) throws InterruptedException {
-    new JavaPlay().run();
+    new FlowPubSubMapPubSub().run();
   }
 
   private void run() throws InterruptedException {

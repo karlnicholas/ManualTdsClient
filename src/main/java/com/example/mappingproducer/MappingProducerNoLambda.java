@@ -36,7 +36,7 @@ public class MappingProducerNoLambda<T> implements Flow.Publisher<T> {
       public void subscribe(Flow.Subscriber<? super T> subscriber) {
         log("Subscribe", opName + " received subscription request");
 
-        // EXPANDED: Explicit Subscription implementation
+        // EXPANDED: Explicit JustSubscription implementation
         subscriber.onSubscribe(new Flow.Subscription() {
           private final AtomicBoolean executed = new AtomicBoolean(false);
           private volatile boolean cancelled = false;
@@ -145,7 +145,7 @@ public class MappingProducerNoLambda<T> implements Flow.Publisher<T> {
   // CONVENIENCE: SUBSCRIBE (Expanded)
   // -----------------------------------------------------------
   public void subscribe(final Consumer<T> consumer) {
-    String subName = "Final-Subscriber";
+    String subName = "Final-ClientSubscriber";
     log("Subscribe", "User called subscribe()");
 
     this.subscribe(new Flow.Subscriber<T>() {
