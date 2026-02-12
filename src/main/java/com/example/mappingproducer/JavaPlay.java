@@ -18,31 +18,37 @@ public class JavaPlay {
 
   private void run3() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    MapPub.just(1).map(i->i+1).map(i->i+1).subscribe(new Flow.Subscriber<Integer>() {
-      @Override
-      public void onSubscribe(Flow.Subscription subscription) {
-        subscription.request(1);
-      }
-
-      @Override
-      public void onNext(Integer item) {
-        System.out.println(item);
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        throwable.printStackTrace();
-        latch.countDown();
-      }
-
-      @Override
-      public void onComplete() {
-        latch.countDown();
-      }
-    });
+    MapPub.just(1).map(i->i+1).map(i->i+1).subscribe(new ClientSubscriber(latch));
     latch.await();
   }
 
+  static class ClientSubscriber implements Flow.Subscriber<Integer> {
+    private final CountDownLatch latch;
+    ClientSubscriber(CountDownLatch latch) {
+      this.latch = latch;
+    }
+
+    @Override
+    public void onSubscribe(Flow.Subscription subscription) {
+      subscription.request(1);
+    }
+
+    @Override
+    public void onNext(Integer item) {
+      System.out.println(item);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      throwable.printStackTrace();
+      latch.countDown();
+    }
+
+    @Override
+    public void onComplete() {
+      latch.countDown();
+    }
+  }
 
   static class MapPub implements Flow.Publisher<Integer> {
     private final Flow.Publisher<Integer> source;
