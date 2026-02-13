@@ -16,7 +16,7 @@ public class JavaPlay {
     CountDownLatch latch = new CountDownLatch(1);
 
     // Assembly remains the same - Decorator pattern in action
-    new JustPublisher<>(10).chain().chain().chain().chain()
+    new JustPublisher<>(10).everyOther().chain().everyOther()
         .subscribe(new ClientSubscriber<>(latch));
 
     latch.await();
@@ -36,8 +36,62 @@ public class JavaPlay {
     public Publisher<T> chain() {
       return new Publisher<>(this);
     }
+    public EveryOtherPublisher<T> everyOther() {
+      return new EveryOtherPublisher<>(this);
+    }
   }
 
+  static class EveryOtherPublisher<T> implements Flow.Publisher<T> {
+    private final Flow.Publisher<T> source;
+    EveryOtherPublisher(Flow.Publisher<T> source) { this.source = source; }
+    @Override
+    public void subscribe(Flow.Subscriber<? super T> subscriber) {
+      source.subscribe(new EveryOtherSubscriber<>(subscriber));
+    }
+    public Publisher<T> chain() {
+      return new Publisher<>(this);
+    }
+    public EveryOtherPublisher<T> everyOther() {
+      return new EveryOtherPublisher<>(this);
+    }
+  }
+
+  static class EveryOtherSubscriber<T> implements Flow.Subscriber<T> {
+    private final Flow.Subscriber<? super T> downstream;
+    private final AtomicLong counter = new AtomicLong(0);
+    private Flow.Subscription upstreamSubscription; // Store the subscription
+
+    EveryOtherSubscriber(Flow.Subscriber<? super T> downstream) {
+      this.downstream = downstream;
+    }
+
+    @Override
+    public void onSubscribe(Flow.Subscription subscription) {
+      this.upstreamSubscription = subscription; // Save it
+      downstream.onSubscribe(subscription);
+    }
+
+    @Override
+    public void onNext(T item) {
+      if (counter.getAndIncrement() % 2 == 0) {
+        downstream.onNext(item);
+      } else {
+        // WE DROPPED ONE!
+        // We must ask the upstream for a replacement so the Sink gets its full count.
+        upstreamSubscription.request(1);
+      }
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      downstream.onError(throwable);
+    }
+
+    @Override
+    public void onComplete() {
+      downstream.onComplete();
+    }
+  }
   // =================================================================================
   // 2. THE API WRAPPER
   // =================================================================================
@@ -50,6 +104,9 @@ public class JavaPlay {
 
     public Publisher<T> chain() {
       return new Publisher<>(this);
+    }
+    public EveryOtherPublisher<T> everyOther() {
+      return new EveryOtherPublisher<>(this);
     }
   }
 
