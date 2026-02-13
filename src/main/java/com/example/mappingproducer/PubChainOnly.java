@@ -6,10 +6,10 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ChainOnly {
+public class PubChainOnly {
 
   public static void main(String[] args) throws InterruptedException {
-    new ChainOnly().run();
+    new PubChainOnly().run();
   }
 
   private void run() throws InterruptedException {
