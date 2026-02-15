@@ -6,69 +6,32 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SimpleProcessor {
+public class JustAndTwoClient {
 
   public static void main(String[] args) throws InterruptedException {
-    new SimpleProcessor().run();
+    new JustAndTwoClient().run();
   }
 
   private void run() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
+    CountDownLatch latch1 = new CountDownLatch(1);
+    CountDownLatch latch2 = new CountDownLatch(1);
 
-    JustPublisher<Integer> source = new JustPublisher<>(1);
-    ItoSProcessor itoSProcessor = new ItoSProcessor();
-    ClientSubscriber<String> sink = new ClientSubscriber<>(latch);
+    // Assembly remains the same - Decorator pattern in action
+    JustPublisher<Integer> pipe = new JustPublisher<>(10);
+    pipe.subscribe(new ClientSubscriber<>(latch1, 5, "c1"));
+    pipe.subscribe(new ClientSubscriber<>(latch2, 10, "c2"));
 
-    // Order doesn't matter anymore because we SAVE the subscription now.
-    source.subscribe(itoSProcessor);
-    itoSProcessor.subscribe(sink);
-
-    latch.await();
+    latch1.await();
+    latch2.await();
   }
 
   // =================================================================================
-  // PROCESSOR 1: Integer -> String
-  // =================================================================================
-  static class ItoSProcessor implements Flow.Processor<Integer, String> {
-
-    private Flow.Subscriber<? super String> downstream;
-    private Flow.Subscription upstream; // <--- ADDED BACK (Essential State)
-
-    @Override
-    public void subscribe(Flow.Subscriber<? super String> subscriber) {
-      this.downstream = subscriber;
-      // If the Source already called us, pass the phone number down now!
-      if (this.upstream != null) {
-        subscriber.onSubscribe(this.upstream);
-      }
-    }
-
-    @Override
-    public void onSubscribe(Flow.Subscription subscription) {
-      this.upstream = subscription; // <--- SAVE IT
-      // If the Downstream is already waiting, pass the phone number down now!
-      if (this.downstream != null) {
-        downstream.onSubscribe(subscription);
-      }
-    }
-
-    @Override
-    public void onNext(Integer item) {
-      // TRANSFORM & PASS
-      if (downstream != null) downstream.onNext("One");
-    }
-
-    // Pass-through error/complete signals
-    @Override public void onError(Throwable t) { if(downstream!=null) downstream.onError(t); }
-    @Override public void onComplete() { if(downstream!=null) downstream.onComplete(); }
-  }
-
-  // =================================================================================
-  // SOURCE (Same as before)
+  // 1. THE GENERIC SOURCE
   // =================================================================================
   static class JustPublisher<T> implements Flow.Publisher<T> {
     private final T value;
     JustPublisher(T value) { this.value = value; }
+
     @Override
     public void subscribe(Flow.Subscriber<? super T> subscriber) {
       subscriber.onSubscribe(new JustSubscription<>(subscriber, value));
@@ -76,19 +39,35 @@ public class SimpleProcessor {
   }
 
   // =================================================================================
-  // SINK (Same as before)
+  // 4. THE SINK
   // =================================================================================
   static class ClientSubscriber<T> implements Flow.Subscriber<T> {
     private final CountDownLatch latch;
-    ClientSubscriber(CountDownLatch latch) { this.latch = latch; }
+    private final Integer count;
+    private final String p;
+    ClientSubscriber(CountDownLatch latch, Integer count, String p) {
+      this.latch = latch;
+      this.count = count;
+      this.p = p;
+    }
+
     @Override
-    public void onSubscribe(Flow.Subscription s) { s.request(1); }
+    public void onSubscribe(Flow.Subscription s) {
+      // Requesting 10 results
+      s.request(count);
+    }
+
     @Override
-    public void onNext(T item) { System.out.println("SINK RECEIVED: " + item); }
+    public void onNext(T item) { System.out.println(p + "SINK RECEIVED: " + item); }
+
     @Override
     public void onError(Throwable t) { t.printStackTrace(); latch.countDown(); }
+
     @Override
-    public void onComplete() { System.out.println("SINK: Done"); latch.countDown(); }
+    public void onComplete() {
+      System.out.println("SINK: onComplete called");
+      latch.countDown();
+    }
   }
 
   // =================================================================================
@@ -110,7 +89,6 @@ public class SimpleProcessor {
     public void request(long n) {
       if (n <= 0) return;
       demand.addAndGet(n); // Track how many items are requested total
-
       // Use compareAndSet to ensure only one thread is pushing data at a time
       if (isRunning.compareAndSet(false, true)) {
         ForkJoinPool.commonPool().execute(this::drain);
@@ -124,7 +102,6 @@ public class SimpleProcessor {
           subscriber.onNext(value);
           demand.decrementAndGet();
         }
-
         // Once the loop finishes, if we aren't cancelled, we complete
         if (!cancelled) {
           subscriber.onComplete();
@@ -135,7 +112,6 @@ public class SimpleProcessor {
         isRunning.set(false);
       }
     }
-
     @Override
     public void cancel() { cancelled = true; }
   }

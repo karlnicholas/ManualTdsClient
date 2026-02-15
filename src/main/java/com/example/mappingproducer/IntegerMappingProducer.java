@@ -7,10 +7,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
-public class JavaPlay {
+public class IntegerMappingProducer {
 
   public static void main(String[] args) throws InterruptedException {
-    new JavaPlay().run();
+    new IntegerMappingProducer().run();
   }
 
   private void run() throws InterruptedException {

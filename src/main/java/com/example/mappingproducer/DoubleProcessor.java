@@ -6,10 +6,10 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SimpleProcessor {
+public class DoubleProcessor {
 
   public static void main(String[] args) throws InterruptedException {
-    new SimpleProcessor().run();
+    new DoubleProcessor().run();
   }
 
   private void run() throws InterruptedException {
@@ -17,11 +17,13 @@ public class SimpleProcessor {
 
     JustPublisher<Integer> source = new JustPublisher<>(1);
     ItoSProcessor itoSProcessor = new ItoSProcessor();
-    ClientSubscriber<String> sink = new ClientSubscriber<>(latch);
+    StoIProcessor stoIProcessor = new StoIProcessor();
+    ClientSubscriber<Integer> sink = new ClientSubscriber<>(latch);
 
-    // Order doesn't matter anymore because we SAVE the subscription now.
+    // Wire them up
     source.subscribe(itoSProcessor);
-    itoSProcessor.subscribe(sink);
+    itoSProcessor.subscribe(stoIProcessor);
+    stoIProcessor.subscribe(sink);
 
     latch.await();
   }
@@ -31,40 +33,79 @@ public class SimpleProcessor {
   // =================================================================================
   static class ItoSProcessor implements Flow.Processor<Integer, String> {
 
-    private Flow.Subscriber<? super String> downstream;
-    private Flow.Subscription upstream; // <--- ADDED BACK (Essential State)
+    private Flow.Subscriber<? super String> downstreamSubscriber;
+    private Flow.Subscription upstreamSubscription; // <--- RENAMED for clarity
 
     @Override
     public void subscribe(Flow.Subscriber<? super String> subscriber) {
-      this.downstream = subscriber;
-      // If the Source already called us, pass the phone number down now!
-      if (this.upstream != null) {
-        subscriber.onSubscribe(this.upstream);
+      this.downstreamSubscriber = subscriber;
+      // If we already have the subscription handle, pass it down immediately
+      if (this.upstreamSubscription != null) {
+        subscriber.onSubscribe(this.upstreamSubscription);
       }
     }
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-      this.upstream = subscription; // <--- SAVE IT
-      // If the Downstream is already waiting, pass the phone number down now!
-      if (this.downstream != null) {
-        downstream.onSubscribe(subscription);
+      this.upstreamSubscription = subscription; // Save the handle
+      // If the subscriber is already waiting, pass the handle to them
+      if (this.downstreamSubscriber != null) {
+        downstreamSubscriber.onSubscribe(subscription);
       }
     }
 
     @Override
     public void onNext(Integer item) {
-      // TRANSFORM & PASS
-      if (downstream != null) downstream.onNext("One");
+      if (downstreamSubscriber != null) downstreamSubscriber.onNext("One");
     }
 
-    // Pass-through error/complete signals
-    @Override public void onError(Throwable t) { if(downstream!=null) downstream.onError(t); }
-    @Override public void onComplete() { if(downstream!=null) downstream.onComplete(); }
+    @Override public void onError(Throwable t) {
+      if(downstreamSubscriber!=null) downstreamSubscriber.onError(t);
+    }
+    @Override public void onComplete() {
+      if(downstreamSubscriber!=null) downstreamSubscriber.onComplete();
+    }
   }
 
   // =================================================================================
-  // SOURCE (Same as before)
+  // PROCESSOR 2: String -> Integer
+  // =================================================================================
+  static class StoIProcessor implements Flow.Processor<String, Integer> {
+
+    private Flow.Subscriber<? super Integer> downstreamSubscriber;
+    private Flow.Subscription upstreamSubscription; // <--- RENAMED for clarity
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super Integer> subscriber) {
+      this.downstreamSubscriber = subscriber;
+      if (this.upstreamSubscription != null) {
+        subscriber.onSubscribe(this.upstreamSubscription);
+      }
+    }
+
+    @Override
+    public void onSubscribe(Flow.Subscription subscription) {
+      this.upstreamSubscription = subscription;
+      if (this.downstreamSubscriber != null) {
+        downstreamSubscriber.onSubscribe(subscription);
+      }
+    }
+
+    @Override
+    public void onNext(String item) {
+      if (downstreamSubscriber != null) downstreamSubscriber.onNext(1);
+    }
+
+    @Override public void onError(Throwable t) {
+      if(downstreamSubscriber!=null) downstreamSubscriber.onError(t);
+    }
+    @Override public void onComplete() {
+      if(downstreamSubscriber!=null) downstreamSubscriber.onComplete();
+    }
+  }
+
+  // =================================================================================
+  // SOURCE (Unchanged)
   // =================================================================================
   static class JustPublisher<T> implements Flow.Publisher<T> {
     private final T value;
@@ -76,13 +117,13 @@ public class SimpleProcessor {
   }
 
   // =================================================================================
-  // SINK (Same as before)
+  // SINK (Unchanged)
   // =================================================================================
   static class ClientSubscriber<T> implements Flow.Subscriber<T> {
     private final CountDownLatch latch;
     ClientSubscriber(CountDownLatch latch) { this.latch = latch; }
     @Override
-    public void onSubscribe(Flow.Subscription s) { s.request(1); }
+    public void onSubscribe(Flow.Subscription s) { s.request(10); }
     @Override
     public void onNext(T item) { System.out.println("SINK RECEIVED: " + item); }
     @Override
