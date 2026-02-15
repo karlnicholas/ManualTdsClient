@@ -46,7 +46,7 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
     String opName = "Source-Just(" + value + ")";
     log("Assembly", "Creating " + opName);
 
-    // No anonymous class here. We use the explicit 'RepeatPublisher'.
+    // No anonymous class here. We use the explicit 'RandomPublisher'.
     JustPublisher<T> publisher = new JustPublisher<>(value, opName);
 
     return new MappingProducer<>(publisher, opName);
@@ -67,12 +67,12 @@ public class MappingProducer<T> implements Flow.Publisher<T> {
     @Override
     public void subscribe(Flow.Subscriber<? super T> subscriber) {
       log("Subscribe", opName + " received subscription request");
-      // Pass dependencies manually to the RepeatSubscription
+      // Pass dependencies manually to the RandomSubscription
       subscriber.onSubscribe(new JustSubscription<>(subscriber, value, opName));
     }
   }
 
-  // The RepeatSubscription
+  // The RandomSubscription
   private static class JustSubscription<T> implements Flow.Subscription {
     private final Flow.Subscriber<? super T> subscriber;
     private final T value;

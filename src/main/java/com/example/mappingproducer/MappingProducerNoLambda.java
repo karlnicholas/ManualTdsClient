@@ -36,7 +36,7 @@ public class MappingProducerNoLambda<T> implements Flow.Publisher<T> {
       public void subscribe(Flow.Subscriber<? super T> subscriber) {
         log("Subscribe", opName + " received subscription request");
 
-        // EXPANDED: Explicit RepeatSubscription implementation
+        // EXPANDED: Explicit RandomSubscription implementation
         subscriber.onSubscribe(new Flow.Subscription() {
           private final AtomicBoolean executed = new AtomicBoolean(false);
           private volatile boolean cancelled = false;

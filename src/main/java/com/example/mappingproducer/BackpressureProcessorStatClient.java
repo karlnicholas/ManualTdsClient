@@ -10,10 +10,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class JavaPlay {
+public class BackpressureProcessorStatClient {
 
   public static void main(String[] args) throws InterruptedException {
-    new JavaPlay().run();
+    new BackpressureProcessorStatClient().run();
   }
 
   private void run() throws InterruptedException {
