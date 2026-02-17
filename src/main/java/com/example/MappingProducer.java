@@ -17,40 +17,75 @@ public class MappingProducer<T> implements Publisher<T> {
     this.source = source;
   }
 
-  // -----------------------------------------------------------
-  // 1. FACTORY: FROM (Direct Copy - No Changes)
-  // -----------------------------------------------------------
   public static <T> MappingProducer<T> from(Publisher<T> source) {
     return new MappingProducer<>(source);
   }
 
-  // -----------------------------------------------------------
-  // 2. FACTORY: JUST (Synchronous Fix)
-  // FIXED: Removed heavy thread creation per request.
-  // -----------------------------------------------------------
   public static <T> MappingProducer<T> just(T value) {
     return new MappingProducer<>(subscriber -> {
       subscriber.onSubscribe(new Subscription() {
         private final AtomicBoolean executed = new AtomicBoolean(false);
-        private volatile boolean cancelled = false;
-
         @Override
         public void request(long n) {
-          if (n > 0 && !cancelled && executed.compareAndSet(false, true)) {
-            // OPTIMIZED: Synchronous emission is standard for 'just'
-            // unless we strictly need to change threads (which requires a shared Scheduler).
-            try {
-              subscriber.onNext(value);
-              if (!cancelled) subscriber.onComplete();
-            } catch (Throwable t) {
-              subscriber.onError(t);
-            }
+          if (n > 0 && executed.compareAndSet(false, true)) {
+            subscriber.onNext(value);
+            subscriber.onComplete();
           }
         }
-
-        @Override public void cancel() { cancelled = true; }
+        @Override public void cancel() { }
       });
     });
+  }
+
+  // --- THE FIX: Chainable Side-Effect Operators ---
+
+  public MappingProducer<T> doOnComplete(Runnable action) {
+    return new MappingProducer<>(subscriber -> source.subscribe(new Subscriber<T>() {
+      @Override
+      public void onSubscribe(Subscription s) { subscriber.onSubscribe(s); }
+
+      @Override
+      public void onNext(T t) { subscriber.onNext(t); }
+
+      @Override
+      public void onError(Throwable t) { subscriber.onError(t); }
+
+      @Override
+      public void onComplete() {
+        try {
+          // Execute the side-effect (e.g., latch.countDown) BEFORE signaling downstream
+          action.run();
+        } catch (Throwable e) {
+          onError(e);
+          return;
+        }
+        subscriber.onComplete();
+      }
+    }));
+  }
+
+  public MappingProducer<T> doOnError(Consumer<Throwable> action) {
+    return new MappingProducer<>(subscriber -> source.subscribe(new Subscriber<T>() {
+      @Override
+      public void onSubscribe(Subscription s) { subscriber.onSubscribe(s); }
+
+      @Override
+      public void onNext(T t) { subscriber.onNext(t); }
+
+      @Override
+      public void onError(Throwable t) {
+        try {
+          action.accept(t);
+        } catch (Throwable e) {
+          // If the error handler fails, we have a double error.
+          // In production, log this. Here we just pass the original.
+        }
+        subscriber.onError(t);
+      }
+
+      @Override
+      public void onComplete() { subscriber.onComplete(); }
+    }));
   }
 
   // -----------------------------------------------------------
@@ -90,36 +125,6 @@ public class MappingProducer<T> implements Publisher<T> {
       // Use the Arbiter to safely coordinate the main source and the inner source
       FlatMapSubscriber<T, R> arbiter = new FlatMapSubscriber<>(downstream, mapper);
       source.subscribe(arbiter);
-    });
-  }
-
-  // Overload: Success Consumer + Error Consumer
-  public void subscribe(Consumer<T> onNext, Consumer<Throwable> onError) {
-    this.subscribe(onNext, onError, () -> {});
-  }
-
-  // Full Overload: Success + Error + Completion
-  public void subscribe(Consumer<T> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-    this.subscribe(new Subscriber<T>() {
-      @Override
-      public void onSubscribe(Subscription s) {
-        s.request(Long.MAX_VALUE);
-      }
-
-      @Override
-      public void onNext(T item) {
-        onNext.accept(item);
-      }
-
-      @Override
-      public void onError(Throwable t) {
-        onError.accept(t);
-      }
-
-      @Override
-      public void onComplete() {
-        onComplete.run();
-      }
     });
   }
 
@@ -232,20 +237,18 @@ public class MappingProducer<T> implements Publisher<T> {
     }
   }
 
-  // -----------------------------------------------------------
-  // CONVENIENCE: SUBSCRIBE
-  // -----------------------------------------------------------
-  public void subscribe(Consumer<T> consumer) {
-    this.subscribe(new Subscriber<T>() {
-      @Override public void onSubscribe(Subscription s) { s.request(Long.MAX_VALUE); }
-      @Override public void onNext(T item) { consumer.accept(item); }
-      @Override public void onError(Throwable t) { t.printStackTrace(); }
-      @Override public void onComplete() { }
-    });
-  }
-
   @Override
   public void subscribe(Subscriber<? super T> subscriber) {
     source.subscribe(subscriber);
+  }
+
+  // Convenience method for "Fire and Forget" (Optional)
+  public void subscribe(Consumer<T> onNext) {
+    this.subscribe(new Subscriber<T>() {
+      @Override public void onSubscribe(Subscription s) { s.request(Long.MAX_VALUE); }
+      @Override public void onNext(T t) { onNext.accept(t); }
+      @Override public void onError(Throwable t) { t.printStackTrace(); }
+      @Override public void onComplete() { }
+    });
   }
 }
