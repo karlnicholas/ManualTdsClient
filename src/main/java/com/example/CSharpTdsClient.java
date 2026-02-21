@@ -62,116 +62,116 @@ public class CSharpTdsClient {
 
   @SuppressWarnings("JpaQueryApiInspection")
   private void runSql(Connection connection) throws InterruptedException {
-//    // 1. Create Table
-//    asyncQueryFlatMap(createSql, connection, allDataTypesMapper);
-//
-//    // 2. Insert Initial Data
-//    asyncQueryFlatMap(insertSql, connection, allDataTypesMapper);
-//
-//    // 3. Large Parameterized Insert (R2dbcType wrapped)
-//    Statement statement = connection.createStatement(bindSql)
-//        // --- Exact Numerics ---
-//        .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))                        // test_bit
-//        .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))                  // test_tinyint
-//        .bind(2, Parameters.in(R2dbcType.SMALLINT, (short) 32000))              // test_smallint
-//        .bind(3, Parameters.in(R2dbcType.INTEGER, 2000000000))                  // test_int
-//        .bind(4, Parameters.in(R2dbcType.BIGINT, 9000000000000000000L))         // test_bigint
-//        .bind(5, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("12345.6789")))// test_decimal
-//        .bind(6, Parameters.in(R2dbcType.NUMERIC, new BigDecimal("999.99")))    // test_numeric
-//        .bind(7, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("214.99")))    // test_smallmoney
-//        .bind(8, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("922337203685477.58"))) // test_money
-//
-//        // --- Approximate Numerics ---
-//        .bind(9, Parameters.in(R2dbcType.REAL, 123.45f))                        // test_real
-//        .bind(10, Parameters.in(R2dbcType.DOUBLE, 123456789.987654321d))        // test_float
-//
-//        // --- Date and Time ---
-//        .bind(11, Parameters.in(R2dbcType.DATE, LocalDate.of(2023, 12, 25)))    // test_date
-//        .bind(12, Parameters.in(R2dbcType.TIME, LocalTime.parse("14:30:15.1234567"))) // test_time
-//        .bind(13, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00"))) // test_datetime
-//        .bind(14, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:15.1234567"))) // test_datetime2
-//        .bind(15, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00"))) // test_smalldatetime
-//        .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))) // test_dtoffset
-//
-//        // --- Character Strings ---
-//        .bind(17, Parameters.in(R2dbcType.CHAR, "FixedChar"))                   // test_char
-//        .bind(18, Parameters.in(R2dbcType.VARCHAR, "Variable Length String"))   // test_varchar
-//        .bind(19, Parameters.in(R2dbcType.VARCHAR, "A".repeat(5000)))           // test_varchar_max
-//        .bind(20, Parameters.in(R2dbcType.VARCHAR, "Legacy Text Data"))         // test_text
-//
-//        // --- Unicode Strings ---
-//        .bind(21, Parameters.in(R2dbcType.NCHAR, "FixedUni"))                   // test_nchar
-//        .bind(22, Parameters.in(R2dbcType.NVARCHAR, "Unicode String"))          // test_nvarchar
-//        .bind(23, Parameters.in(R2dbcType.NVARCHAR, "あ".repeat(4000)))         // test_nvarchar_max
-//
-//        // --- Binary Strings ---
-//        .bind(24, Parameters.in(R2dbcType.BINARY, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))) // test_binary
-//        .bind(25, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))) // test_varbinary
-//        .bind(26, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))) // test_varbinary_max
-//        .bind(27, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))) // test_image
-//
-//        // --- Other Data Types ---
-//        .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))             // test_guid
-//        .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>")); // test_xml
-//
-//    rpcAsyncQueryFlatMap(statement, allDataTypesMapper);
-//
-//    // 4. Large Parameterized Insert (Inferred Types)
-//    statement = connection.createStatement(bindSql)
-//        // --- Exact Numerics ---
-//        .bind(0, true)                                      // test_bit
-//        .bind(1, (byte)255)                                      // test_tinyint
-//        .bind(2, (short) 32000)                             // test_smallint
-//        .bind(3, 2000000000)                                // test_int
-//        .bind(4, 9000000000000000000L)                      // test_bigint
-//        .bind(5, new BigDecimal("12345.6789"))              // test_decimal
-//        .bind(6, new BigDecimal("999.99"))                  // test_numeric
-//        .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
-//        .bind(8, new BigDecimal("922337203685477.58"))      // test_money
-//
-//        // --- Approximate Numerics ---
-//        .bind(9, 123.45f)                                   // test_real
-//        .bind(10, 123456789.987654321d)                     // test_float
-//
-//        // --- Date and Time ---
-//        .bind(11, LocalDate.of(2023, 12, 25))               // test_date
-//        .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
-//        .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
-//        .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
-//        .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
-//        .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
-//
-//        // --- Character Strings ---
-//        .bind(17, "FixedChar")                              // test_char
-//        .bind(18, "Variable Length String")                 // test_varchar
-//        .bind(19, "A".repeat(5000))                         // test_varchar_max
-//        .bind(20, "Legacy Text Data")                       // test_text
-//
-//        // --- Unicode Strings ---
-//        .bind(21, "FixedUni")                               // test_nchar
-//        .bind(22, "Unicode String")                         // test_nvarchar
-//        .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
-//
-//        // --- Binary Strings ---
-//        .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
-//        .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
-//        .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
-//        .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
-//
-//        // --- Other Data Types ---
-//        .bind(28, UUID.randomUUID())                        // test_guid
-//        .bind(29, "<root><node>Test XML</node></root>");    // test_xml
-//
-//    rpcAsyncQueryFlatMap(statement, allDataTypesMapper);
-//
-//    // 5. Select All
-//    asyncQueryFlatMap(querySql, connection, allDataTypesMapper);
+    // 1. Create Table
+    asyncQueryFlatMap(createSql, connection, allDataTypesMapper);
+
+    // 2. Insert Initial Data
+    asyncQueryFlatMap(insertSql, connection, allDataTypesMapper);
+
+    // 3. Large Parameterized Insert (R2dbcType wrapped)
+    Statement statement = connection.createStatement(bindSql)
+        // --- Exact Numerics ---
+        .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))                        // test_bit
+        .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))                  // test_tinyint
+        .bind(2, Parameters.in(R2dbcType.SMALLINT, (short) 32000))              // test_smallint
+        .bind(3, Parameters.in(R2dbcType.INTEGER, 2000000000))                  // test_int
+        .bind(4, Parameters.in(R2dbcType.BIGINT, 9000000000000000000L))         // test_bigint
+        .bind(5, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("12345.6789")))// test_decimal
+        .bind(6, Parameters.in(R2dbcType.NUMERIC, new BigDecimal("999.99")))    // test_numeric
+        .bind(7, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("214.99")))    // test_smallmoney
+        .bind(8, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("922337203685477.58"))) // test_money
+
+        // --- Approximate Numerics ---
+        .bind(9, Parameters.in(R2dbcType.REAL, 123.45f))                        // test_real
+        .bind(10, Parameters.in(R2dbcType.DOUBLE, 123456789.987654321d))        // test_float
+
+        // --- Date and Time ---
+        .bind(11, Parameters.in(R2dbcType.DATE, LocalDate.of(2023, 12, 25)))    // test_date
+        .bind(12, Parameters.in(R2dbcType.TIME, LocalTime.parse("14:30:15.1234567"))) // test_time
+        .bind(13, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00"))) // test_datetime
+        .bind(14, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:15.1234567"))) // test_datetime2
+        .bind(15, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00"))) // test_smalldatetime
+        .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))) // test_dtoffset
+
+        // --- Character Strings ---
+        .bind(17, Parameters.in(R2dbcType.CHAR, "FixedChar"))                   // test_char
+        .bind(18, Parameters.in(R2dbcType.VARCHAR, "Variable Length String"))   // test_varchar
+        .bind(19, Parameters.in(R2dbcType.VARCHAR, "A".repeat(5000)))           // test_varchar_max
+        .bind(20, Parameters.in(R2dbcType.VARCHAR, "Legacy Text Data"))         // test_text
+
+        // --- Unicode Strings ---
+        .bind(21, Parameters.in(R2dbcType.NCHAR, "FixedUni"))                   // test_nchar
+        .bind(22, Parameters.in(R2dbcType.NVARCHAR, "Unicode String"))          // test_nvarchar
+        .bind(23, Parameters.in(R2dbcType.NVARCHAR, "あ".repeat(4000)))         // test_nvarchar_max
+
+        // --- Binary Strings ---
+        .bind(24, Parameters.in(R2dbcType.BINARY, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))) // test_binary
+        .bind(25, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))) // test_varbinary
+        .bind(26, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))) // test_varbinary_max
+        .bind(27, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))) // test_image
+
+        // --- Other Data Types ---
+        .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))             // test_guid
+        .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>")); // test_xml
+
+    rpcAsyncQueryFlatMap(statement, allDataTypesMapper);
+
+    // 4. Large Parameterized Insert (Inferred Types)
+    statement = connection.createStatement(bindSql)
+        // --- Exact Numerics ---
+        .bind(0, true)                                      // test_bit
+        .bind(1, (byte)255)                                      // test_tinyint
+        .bind(2, (short) 32000)                             // test_smallint
+        .bind(3, 2000000000)                                // test_int
+        .bind(4, 9000000000000000000L)                      // test_bigint
+        .bind(5, new BigDecimal("12345.6789"))              // test_decimal
+        .bind(6, new BigDecimal("999.99"))                  // test_numeric
+        .bind(7, new BigDecimal("214.99"))                  // test_smallmoney
+        .bind(8, new BigDecimal("922337203685477.58"))      // test_money
+
+        // --- Approximate Numerics ---
+        .bind(9, 123.45f)                                   // test_real
+        .bind(10, 123456789.987654321d)                     // test_float
+
+        // --- Date and Time ---
+        .bind(11, LocalDate.of(2023, 12, 25))               // test_date
+        .bind(12, LocalTime.parse("14:30:15.1234567"))      // test_time
+        .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_datetime
+        .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567")) // test_datetime2
+        .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))         // test_smalldatetime
+        .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")) // test_dtoffset
+
+        // --- Character Strings ---
+        .bind(17, "FixedChar")                              // test_char
+        .bind(18, "Variable Length String")                 // test_varchar
+        .bind(19, "A".repeat(5000))                         // test_varchar_max
+        .bind(20, "Legacy Text Data")                       // test_text
+
+        // --- Unicode Strings ---
+        .bind(21, "FixedUni")                               // test_nchar
+        .bind(22, "Unicode String")                         // test_nvarchar
+        .bind(23, "あ".repeat(4000))                        // test_nvarchar_max
+
+        // --- Binary Strings ---
+        .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})) // test_binary
+        .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})) // test_varbinary
+        .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})) // test_varbinary_max
+        .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})) // test_image
+
+        // --- Other Data Types ---
+        .bind(28, UUID.randomUUID())                        // test_guid
+        .bind(29, "<root><node>Test XML</node></root>");    // test_xml
+
+    rpcAsyncQueryFlatMap(statement, allDataTypesMapper);
+
+    // 5. Select All
+    asyncQueryFlatMap(querySql, connection, allDataTypesMapper);
 
     // 6. Select with Output Parameters
     String sql = """
             SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users
             """;
-    Statement statement = connection.createStatement(sql)
+    statement = connection.createStatement(sql)
             .bind("@count", Parameters.out(R2dbcType.BIGINT))
             .bind("@sum", Parameters.out(R2dbcType.BIGINT))
             .bind("@average", Parameters.out(R2dbcType.BIGINT));
@@ -253,11 +253,11 @@ public class CSharpTdsClient {
   };
 
   // NEW: Mapper for OutParameters
-  BiFunction<OutParameters, OutParametersMetadata, List<Long>> rvOutMapper = (out, meta) -> {
-    List<Long> returnValues = new ArrayList<>();
-    returnValues.add(out.get(0, Long.class));
-    returnValues.add(out.get(1, Long.class));
-    returnValues.add(out.get(2, Long.class));
+  BiFunction<OutParameters, OutParametersMetadata, List<Integer>> rvOutMapper = (out, meta) -> {
+    List<Integer> returnValues = new ArrayList<>();
+    returnValues.add(out.get(0, Integer.class));
+    returnValues.add(out.get(1, Integer.class));
+    returnValues.add(out.get(2, Integer.class));
     return returnValues;
   };
 
