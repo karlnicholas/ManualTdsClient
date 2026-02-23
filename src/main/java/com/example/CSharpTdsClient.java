@@ -162,21 +162,29 @@ public class CSharpTdsClient {
 //        .bind(29, "<root><node>Test XML</node></root>");    // test_xml
 //
 //    rpcAsyncQueryFlatMap(statement, allDataTypesMapper);
+//
+//    // 5. Select All
+//    asyncQueryMap(querySql, connection, allDataTypesMapper);
+//
+    // 6. Select with Output Parameters
+    String sql = """
+            SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users
+            """;
+    Statement statement = connection.createStatement(sql)
+            .bind("@count", Parameters.out(R2dbcType.BIGINT))
+            .bind("@sum", Parameters.out(R2dbcType.BIGINT))
+            .bind("@average", Parameters.out(R2dbcType.BIGINT));
 
-    // 5. Select All
-    asyncQueryMap(querySql, connection, allDataTypesMapper);
-
-//    // 6. Select with Output Parameters
+    // CHANGED: Use new method for OutParameters segments (Reactor-free)
+    rpcAsyncQuerySegments(statement, rvOutMapper);
+//    // 7. Update a tow
 //    String sql = """
-//            SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users
+//            update dbo.AllDataTypes set test_bit = 0 where id=0
 //            """;
-//    statement = connection.createStatement(sql)
-//            .bind("@count", Parameters.out(R2dbcType.BIGINT))
-//            .bind("@sum", Parameters.out(R2dbcType.BIGINT))
-//            .bind("@average", Parameters.out(R2dbcType.BIGINT));
+//    Statement statement = connection.createStatement(sql);
 //
 //    // CHANGED: Use new method for OutParameters segments (Reactor-free)
-//    rpcAsyncQuerySegments(statement, rvOutMapper);
+//    rpcAsyncUpdateGetCount(statement);
   }
 
   // --- Mappers ---
@@ -347,6 +355,33 @@ public class CSharpTdsClient {
               @Override
               public void onComplete() { /* Handled in doOnComplete */ }
             });
+
+    latch.await();
+  }
+
+  // NEW: Replacement for output parameters using Segments
+  private void rpcAsyncUpdateGetCount(Statement statement) throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+
+    MappingProducer.from(statement.execute())
+        .flatMap(result -> result.getRowsUpdated())
+        .doOnComplete(latch::countDown)
+        .doOnError(t -> {
+          System.err.println("RPC Segment Error: " + t.getMessage());
+          latch.countDown();
+        })
+        .subscribe(new Subscriber<>() {
+          @Override
+          public void onSubscribe(Subscription s) { s.request(Long.MAX_VALUE); }
+          @Override
+          public void onNext(Long item) {
+            System.out.println(item);
+          }
+          @Override
+          public void onError(Throwable t) { /* Handled in doOnError */ }
+          @Override
+          public void onComplete() { /* Handled in doOnComplete */ }
+        });
 
     latch.await();
   }
