@@ -10,11 +10,32 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class InsertAllDataTypesJdbc {
 
   public static void main(String[] args) {
+// ────────────────────────────────────────────────
+    // Enable JDBC Driver Trace Logging
+    // ────────────────────────────────────────────────
+    ConsoleHandler handler = new ConsoleHandler();
+    handler.setLevel(Level.FINEST);
+    handler.setFormatter(new SimpleFormatter());
 
+    // Logger for raw TDS packet hex dumps (The bytes sent/received)
+    Logger tdsLogger = Logger.getLogger("com.microsoft.sqlserver.jdbc.internals.TDS.DATA");
+    tdsLogger.addHandler(handler);
+    tdsLogger.setLevel(Level.FINEST);
+    tdsLogger.setUseParentHandlers(false); // Prevents duplicate logging
+
+    // Optional: General JDBC logger to see the connection sequence
+    Logger jdbcLogger = Logger.getLogger("com.microsoft.sqlserver.jdbc.Connection");
+    jdbcLogger.addHandler(handler);
+    jdbcLogger.setLevel(Level.FINE);
+    jdbcLogger.setUseParentHandlers(false);
     // ────────────────────────────────────────────────
     // Connection settings
     // ────────────────────────────────────────────────
@@ -120,7 +141,7 @@ public class InsertAllDataTypesJdbc {
 
       // --- Character Strings ---
       ps.setString(18, "FixedChar");                               // test_char
-      ps.setString(19, "Variable Length String");                  // test_varchar
+      ps.setString(19, "Euro: € and Cafe: Café");                  // test_varchar
       ps.setString(20, "A".repeat(5000));                          // test_varchar_max
       ps.setString(21, "Legacy Text Data");                        // test_text
 
