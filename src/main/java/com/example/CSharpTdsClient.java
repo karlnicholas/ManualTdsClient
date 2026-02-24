@@ -168,6 +168,16 @@ public class CSharpTdsClient {
     Batch batch = connection.createBatch();
     batchSql.forEach(batch::add);
     executeStream("10. createBatch() API", batch.execute(), res -> res.map(allDataTypesMapper));
+    // 11. Example of how a user would gracefully close it:
+    MappingProducer.from(connection.close())
+        .subscribe(new Subscriber<Void>() {
+          @Override public void onSubscribe(Subscription s) { s.request(1); }
+          @Override public void onNext(Void unused) {}
+          @Override public void onError(Throwable t) { t.printStackTrace(); }
+          @Override public void onComplete() {
+            System.out.println("Connection safely closed.");
+          }
+        });
   }
 
   // --- The Universal Async Helper ---
