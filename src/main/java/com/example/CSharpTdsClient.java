@@ -59,111 +59,111 @@ public class CSharpTdsClient {
 
   @SuppressWarnings("JpaQueryApiInspection")
   private void runSql(Connection connection) throws InterruptedException {
-//    // 1. Create Table (DDL -> Update Count)
-//    executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated);
-//
-//    // 2. Insert Initial Data (DML -> Update Count)
-//    executeStream("2. Insert Initial Data", connection.createStatement(insertSql).execute(), Result::getRowsUpdated);
-//
-//    // 3. Large Parameterized Insert (R2dbcType wrapped)
-//    Statement stmt3 = connection.createStatement(bindSql)
-//        .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))
-//        .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))
-//        .bind(2, Parameters.in(R2dbcType.SMALLINT, (short) 32000))
-//        .bind(3, Parameters.in(R2dbcType.INTEGER, 2000000000))
-//        .bind(4, Parameters.in(R2dbcType.BIGINT, 9000000000000000000L))
-//        .bind(5, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("12345.6789")))
-//        .bind(6, Parameters.in(R2dbcType.NUMERIC, new BigDecimal("999.99")))
-//        .bind(7, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("214.99")))
-//        .bind(8, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("922337203685477.58")))
-//        .bind(9, Parameters.in(R2dbcType.REAL, 123.45f))
-//        .bind(10, Parameters.in(R2dbcType.DOUBLE, 123456789.987654321d))
-//        .bind(11, Parameters.in(R2dbcType.DATE, LocalDate.of(2023, 12, 25)))
-//        .bind(12, Parameters.in(R2dbcType.TIME, LocalTime.parse("14:30:15.1234567")))
-//        .bind(13, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
-//        .bind(14, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:15.1234567")))
-//        .bind(15, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
-//        .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")))
-//        .bind(17, Parameters.in(R2dbcType.CHAR, "FixedChar"))
-//        .bind(18, Parameters.in(R2dbcType.VARCHAR, "Variable Length String"))
-//        .bind(19, Parameters.in(R2dbcType.VARCHAR, "A".repeat(5000)))
-//        .bind(20, Parameters.in(R2dbcType.VARCHAR, "Legacy Text Data"))
-//        .bind(21, Parameters.in(R2dbcType.NCHAR, "FixedUni"))
-//        .bind(22, Parameters.in(R2dbcType.NVARCHAR, "Unicode String"))
-//        .bind(23, Parameters.in(R2dbcType.NVARCHAR, "あ".repeat(4000)))
-//        .bind(24, Parameters.in(R2dbcType.BINARY, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})))
-//        .bind(25, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})))
-//        .bind(26, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})))
-//        .bind(27, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})))
-//        .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))
-//        .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>"));
-//    executeStream("3. Parameterized Insert (R2dbcType)", stmt3.execute(), Result::getRowsUpdated);
-//
-//    // 4. Large Parameterized Insert (Inferred Types)
-//    Statement stmt4 = connection.createStatement(bindSql)
-//        .bind(0, true)
-//        .bind(1, (byte)255)
-//        .bind(2, (short) 32000)
-//        .bind(3, 2000000000)
-//        .bind(4, 9000000000000000000L)
-//        .bind(5, new BigDecimal("12345.6789"))
-//        .bind(6, new BigDecimal("999.99"))
-//        .bind(7, new BigDecimal("214.99"))
-//        .bind(8, new BigDecimal("922337203685477.58"))
-//        .bind(9, 123.45f)
-//        .bind(10, 123456789.987654321d)
-//        .bind(11, LocalDate.of(2023, 12, 25))
-//        .bind(12, LocalTime.parse("14:30:15.1234567"))
-//        .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))
-//        .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567"))
-//        .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))
-//        .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))
-//        .bind(17, "FixedChar")
-//        .bind(18, "Euro: € and Cafe: Café")
-//        .bind(19, "A".repeat(5000))
-//        .bind(20, "Legacy Text Data")
-//        .bind(21, "FixedUni")
-//        .bind(22, "Unicode String")
-//        .bind(23, "あ".repeat(4000))
-//        .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))
-//        .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))
-//        .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))
-//        .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))
-//        .bind(28, UUID.randomUUID())
-//        .bind(29, "<root><node>Test XML</node></root>");
-//    executeStream("4. Parameterized Insert (Inferred Types)", stmt4.execute(), Result::getRowsUpdated);
-//
-//    // 5. Select All (DQL -> Mapping)
-//    executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper));
-//
-//    // 6. Select with Output Parameters
-//    String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
-//    Statement stmt6 = connection.createStatement(outSql)
-//        .bind("@count", Parameters.out(R2dbcType.BIGINT))
-//        .bind("@sum", Parameters.out(R2dbcType.BIGINT))
-//        .bind("@average", Parameters.out(R2dbcType.BIGINT));
-//    executeStream("6. Select Out Parameters", stmt6.execute(), res -> res.flatMap(segment -> {
-//      if (segment instanceof Result.OutSegment) {
-//        OutParameters out = ((Result.OutSegment) segment).outParameters();
-//        return MappingProducer.just(rvOutMapper.apply(out, out.getMetadata()));
-//      }
-//      return new EmptyPublisher<>();
-//    }));
-//
-//    // 7. Update single row
-//    Statement stmt7 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 0 WHERE id=1");
-//    executeStream("7. Update Row", stmt7.execute(), Result::getRowsUpdated);
-//
-//    // 8. Select multiple batch from raw string
-//    executeStream("8. String Batch Execution", connection.createStatement(String.join("\n", batchSql)).execute(), res -> res.map(allDataTypesMapper));
-//
-//    // 9. Statement.add() Parameter Batching (FIXED: Uses UPDATE instead of SELECT)
-//    Statement stmt9 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 1 WHERE id = @id");
-//    stmt9.bind("@id", 1).add();
-//    stmt9.bind("@id", 2).add();
-//    stmt9.bind("@id", 3).add();
-//    executeStream("9. Statement Parameter Batching", stmt9.execute(), Result::getRowsUpdated);
-//
+    // 1. Create Table (DDL -> Update Count)
+    executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated);
+
+    // 2. Insert Initial Data (DML -> Update Count)
+    executeStream("2. Insert Initial Data", connection.createStatement(insertSql).execute(), Result::getRowsUpdated);
+
+    // 3. Large Parameterized Insert (R2dbcType wrapped)
+    Statement stmt3 = connection.createStatement(bindSql)
+        .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))
+        .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))
+        .bind(2, Parameters.in(R2dbcType.SMALLINT, (short) 32000))
+        .bind(3, Parameters.in(R2dbcType.INTEGER, 2000000000))
+        .bind(4, Parameters.in(R2dbcType.BIGINT, 9000000000000000000L))
+        .bind(5, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("12345.6789")))
+        .bind(6, Parameters.in(R2dbcType.NUMERIC, new BigDecimal("999.99")))
+        .bind(7, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("214.99")))
+        .bind(8, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("922337203685477.58")))
+        .bind(9, Parameters.in(R2dbcType.REAL, 123.45f))
+        .bind(10, Parameters.in(R2dbcType.DOUBLE, 123456789.987654321d))
+        .bind(11, Parameters.in(R2dbcType.DATE, LocalDate.of(2023, 12, 25)))
+        .bind(12, Parameters.in(R2dbcType.TIME, LocalTime.parse("14:30:15.1234567")))
+        .bind(13, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
+        .bind(14, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:15.1234567")))
+        .bind(15, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
+        .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")))
+        .bind(17, Parameters.in(R2dbcType.CHAR, "FixedChar"))
+        .bind(18, Parameters.in(R2dbcType.VARCHAR, "Variable Length String"))
+        .bind(19, Parameters.in(R2dbcType.VARCHAR, "A".repeat(5000)))
+        .bind(20, Parameters.in(R2dbcType.VARCHAR, "Legacy Text Data"))
+        .bind(21, Parameters.in(R2dbcType.NCHAR, "FixedUni"))
+        .bind(22, Parameters.in(R2dbcType.NVARCHAR, "Unicode String"))
+        .bind(23, Parameters.in(R2dbcType.NVARCHAR, "あ".repeat(4000)))
+        .bind(24, Parameters.in(R2dbcType.BINARY, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})))
+        .bind(25, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})))
+        .bind(26, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})))
+        .bind(27, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})))
+        .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))
+        .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>"));
+    executeStream("3. Parameterized Insert (R2dbcType)", stmt3.execute(), Result::getRowsUpdated);
+
+    // 4. Large Parameterized Insert (Inferred Types)
+    Statement stmt4 = connection.createStatement(bindSql)
+        .bind(0, true)
+        .bind(1, (byte)255)
+        .bind(2, (short) 32000)
+        .bind(3, 2000000000)
+        .bind(4, 9000000000000000000L)
+        .bind(5, new BigDecimal("12345.6789"))
+        .bind(6, new BigDecimal("999.99"))
+        .bind(7, new BigDecimal("214.99"))
+        .bind(8, new BigDecimal("922337203685477.58"))
+        .bind(9, 123.45f)
+        .bind(10, 123456789.987654321d)
+        .bind(11, LocalDate.of(2023, 12, 25))
+        .bind(12, LocalTime.parse("14:30:15.1234567"))
+        .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))
+        .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567"))
+        .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))
+        .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))
+        .bind(17, "FixedChar")
+        .bind(18, "Euro: € and Cafe: Café")
+        .bind(19, "A".repeat(5000))
+        .bind(20, "Legacy Text Data")
+        .bind(21, "FixedUni")
+        .bind(22, "Unicode String")
+        .bind(23, "あ".repeat(4000))
+        .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))
+        .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))
+        .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))
+        .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))
+        .bind(28, UUID.randomUUID())
+        .bind(29, "<root><node>Test XML</node></root>");
+    executeStream("4. Parameterized Insert (Inferred Types)", stmt4.execute(), Result::getRowsUpdated);
+
+    // 5. Select All (DQL -> Mapping)
+    executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper));
+
+    // 6. Select with Output Parameters
+    String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
+    Statement stmt6 = connection.createStatement(outSql)
+        .bind("@count", Parameters.out(R2dbcType.BIGINT))
+        .bind("@sum", Parameters.out(R2dbcType.BIGINT))
+        .bind("@average", Parameters.out(R2dbcType.BIGINT));
+    executeStream("6. Select Out Parameters", stmt6.execute(), res -> res.flatMap(segment -> {
+      if (segment instanceof Result.OutSegment) {
+        OutParameters out = ((Result.OutSegment) segment).outParameters();
+        return MappingProducer.just(rvOutMapper.apply(out, out.getMetadata()));
+      }
+      return new EmptyPublisher<>();
+    }));
+
+    // 7. Update single row
+    Statement stmt7 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 0 WHERE id=1");
+    executeStream("7. Update Row", stmt7.execute(), Result::getRowsUpdated);
+
+    // 8. Select multiple batch from raw string
+    executeStream("8. String Batch Execution", connection.createStatement(String.join("\n", batchSql)).execute(), res -> res.map(allDataTypesMapper));
+
+    // 9. Statement.add() Parameter Batching (FIXED: Uses UPDATE instead of SELECT)
+    Statement stmt9 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 1 WHERE id = @id");
+    stmt9.bind("@id", 1).add();
+    stmt9.bind("@id", 2).add();
+    stmt9.bind("@id", 3).add();
+    executeStream("9. Statement Parameter Batching", stmt9.execute(), Result::getRowsUpdated);
+
     // 10. True Batch API
     Batch batch = connection.createBatch();
     batchSql.forEach(batch::add);
