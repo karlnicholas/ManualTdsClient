@@ -4,6 +4,7 @@ import io.r2dbc.spi.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.tdslib.javatdslib.security.SslContextBuilder;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -31,6 +32,10 @@ public class CSharpTdsClient {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
+        .option(SslContextBuilder.TRUST_SERVER_CERTIFICATE, true)
+//        .option(SslContextBuilder.TRUST_SERVER_CERTIFICATE, false)
+//        .option(SslContextBuilder.TRUST_STORE, "c:/users/karln/IdeaProjects/JavaTdsLibCopilot/myTrustStore.jks")
+//        .option(SslContextBuilder.TRUST_STORE_PASSWORD, "changeit")
         .build());
 
     System.out.println("Connecting to database...");
