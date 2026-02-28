@@ -173,7 +173,20 @@ public class CSharpTdsClient {
     Batch batch = connection.createBatch();
     batchSql.forEach(batch::add);
     executeStream("10. createBatch() API", batch.execute(), res -> res.map(allDataTypesMapper));
-    // 11. Example of how a user would gracefully close it:
+
+    // 11. Test Runtime Error (Data Conversion)
+    Statement errorStmt1 = connection.createStatement("SELECT CAST('NotAnInteger' AS INT)");
+    executeStream("11. Runtime Error Test", errorStmt1.execute(), res -> res.map((row, meta) -> row.get(0, Integer.class)));
+
+    // 11. Test Runtime Error (Explicit Raiserror)
+    Statement errorStmt2 = connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)");
+    executeStream("11. Runtime Error Test", errorStmt2.execute(), Result::getRowsUpdated);
+
+    // 12. Test Resolution Error (Table Does Not Exist)
+    Statement errorStmt3 = connection.createStatement("SELECT * FROM dbo.TableThatDoesNotExist");
+    executeStream("12. Invalid Table Test", errorStmt3.execute(), res -> res.map((row, meta) -> row.get(0, String.class)));
+
+    // Example of how a user would gracefully close it:
     MappingProducer.from(connection.close())
         .subscribe(new Subscriber<Void>() {
           @Override public void onSubscribe(Subscription s) { s.request(1); }
