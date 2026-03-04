@@ -4,6 +4,7 @@ import io.r2dbc.spi.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.tdslib.javatdslib.api.TdsConnectionFactory;
 import org.tdslib.javatdslib.security.SslContextBuilder;
 
 import java.math.BigDecimal;
@@ -32,10 +33,10 @@ public class CSharpTdsClient {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(SslContextBuilder.TRUST_SERVER_CERTIFICATE, true)
-//        .option(SslContextBuilder.TRUST_SERVER_CERTIFICATE, false)
-//        .option(SslContextBuilder.TRUST_STORE, "c:/users/karln/IdeaProjects/JavaTdsLibCopilot/myTrustStore.jks")
-//        .option(SslContextBuilder.TRUST_STORE_PASSWORD, "changeit")
+        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+//        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, false)
+//        .option(TdsConnectionFactory.TRUST_STORE, "c:/users/karln/IdeaProjects/JavaTdsLibCopilot/myTrustStore.jks")
+//        .option(TdsConnectionFactory.TRUST_STORE_PASSWORD, "changeit")
         .build());
 
     System.out.println("Connecting to database...");
@@ -328,6 +329,7 @@ public class CSharpTdsClient {
     SET TEXTSIZE -1;
     SELECT * FROM dbo.AllDataTypes;
     """;
+
 
   private static final List<String> batchSql = List.of(
       "SET TEXTSIZE -1;",
