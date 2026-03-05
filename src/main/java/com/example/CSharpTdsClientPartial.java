@@ -90,7 +90,10 @@ public class CSharpTdsClientPartial {
 //    );
 
 // 5. Select and Stream Blob
-    executeStream("5. Stream Blob", connection.createStatement(querySql).execute(), res ->
+    executeStream("5. Stream Blob", connection
+        .createStatement(querySql)
+            .execute(),
+        res ->
         MappingProducer.from(res.map((row, meta) -> row.get(0, Blob.class)))
             .flatMap(blob -> {
               if (blob != null) {
