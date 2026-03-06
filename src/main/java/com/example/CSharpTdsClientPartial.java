@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
@@ -95,65 +96,25 @@ public class CSharpTdsClientPartial {
             .execute(),
         res -> MappingProducer.from(res.map((row, meta) -> {
           System.out.println(">>> ROW HIT THE MAP FUNCTION!");
-
           Integer id = row.get(0, Integer.class);
-          System.out.println(">>> Got ID: " + id);
 
+          // Clean LOB handling
           Clob clob = row.get(1, Clob.class);
-          System.out.println(">>> Got Clob Handle: " + (clob != null));
-
           if (clob != null) {
-            // Fire and forget subscription just to see if it moves
-            clob.stream().subscribe(new Subscriber<>() {
-              @Override public void onSubscribe(Subscription s) {
-                System.out.println(">>> Clob: onSubscribe. Requesting all...");
-                s.request(Long.MAX_VALUE);
-              }
-              @Override public void onNext(CharSequence buffer) {
-                System.out.println(">>> Clob: onNext! Bytes: " + buffer);
-              }
-              @Override public void onError(Throwable t) {
-                System.err.println(">>> Clob ERROR: " + t.getMessage());
-              }
-              @Override public void onComplete() {
-                System.out.println(">>> Clob: onComplete!");
-              }
-            });
+            clob.stream().subscribe(new DiagnosticSubscriber<>("CLOB",
+                buf -> System.out.println(">>> Clob: onNext! Bytes: " + buf), null));
           }
 
-          // We are breaking the rules here to test if the driver lets us get the Bool
-          // immediately while the Blob stream is running asynchronously in the background.
           Boolean bool = row.get(2, Boolean.class);
-          System.out.println(">>> Got Bool: " + bool);
 
           Blob blob = row.get(3, Blob.class);
-          System.out.println(">>> Got Blob Handle: " + (blob != null));
-
           if (blob != null) {
-            // Fire and forget subscription just to see if it moves
-            blob.stream().subscribe(new Subscriber<>() {
-              @Override public void onSubscribe(Subscription s) {
-                System.out.println(">>> BLOB: onSubscribe. Requesting all...");
-                s.request(Long.MAX_VALUE);
-              }
-              @Override public void onNext(ByteBuffer buffer) {
-                System.out.println(">>> BLOB: onNext! Bytes: " + buffer.remaining());
-              }
-              @Override public void onError(Throwable t) {
-                System.err.println(">>> BLOB ERROR: " + t.getMessage());
-              }
-              @Override public void onComplete() {
-                System.out.println(">>> BLOB: onComplete!");
-              }
-            });
+            blob.stream().subscribe(new DiagnosticSubscriber<>("BLOB",
+                buf -> System.out.println(">>> BLOB: onNext! Bytes: " + buf.remaining()), null));
           }
 
-          // We are breaking the rules here to test if the driver lets us get the Bool
-          // immediately while the Blob stream is running asynchronously in the background.
-          Integer tinyint = row.get(4, Integer.class);
-          System.out.println(">>> Got Integer: " + tinyint);
-
-          return List.of(id, "Clob stream triggered asynchronously", bool, "Blob stream triggered asynchronously", tinyint);
+          Byte tinyint = row.get(4, Byte.class);
+          return List.of(id, "Clob Async", bool, "Blob Async", tinyint);
         }))
     );
 
@@ -169,6 +130,31 @@ public class CSharpTdsClientPartial {
         });
   }
 
+  /**
+   * A reusable subscriber for diagnostic logging and latch management.
+   */
+  class DiagnosticSubscriber<T> implements Subscriber<T> {
+    private final String label;
+    private final Consumer<T> onNextAction;
+    private final Runnable onCompleteAction;
+
+    public DiagnosticSubscriber(String label, Consumer<T> onNextAction, Runnable onCompleteAction) {
+      this.label = label;
+      this.onNextAction = onNextAction;
+      this.onCompleteAction = onCompleteAction;
+    }
+
+    @Override public void onSubscribe(Subscription s) {
+      System.out.println(">>> " + label + ": onSubscribe. Requesting all...");
+      s.request(Long.MAX_VALUE);
+    }
+    @Override public void onNext(T item) { onNextAction.accept(item); }
+    @Override public void onError(Throwable t) { System.err.println(">>> " + label + " ERROR: " + t.getMessage()); }
+    @Override public void onComplete() {
+      System.out.println(">>> " + label + ": onComplete!");
+      if (onCompleteAction != null) onCompleteAction.run();
+    }
+  }
   // --- The Universal Async Helper ---
 
   /**
