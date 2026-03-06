@@ -17,6 +17,7 @@ import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.api.TdsConnectionFactory;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -89,18 +90,71 @@ public class CSharpTdsClientPartial {
 //            })
 //    );
 
-// 5. Select and Stream Blob
-    executeStream("5. Stream Blob", connection
-        .createStatement(querySql)
+    executeStream("5. Diagnostic Blob Test", connection
+            .createStatement(querySql)
             .execute(),
-        res ->
-        MappingProducer.from(res.map((row, meta) -> row.get(0, Blob.class)))
-            .flatMap(blob -> {
-              if (blob != null) {
-                return blob.stream(); // Open the valve! Returns Publisher<ByteBuffer>
+        res -> MappingProducer.from(res.map((row, meta) -> {
+          System.out.println(">>> ROW HIT THE MAP FUNCTION!");
+
+          Integer id = row.get(0, Integer.class);
+          System.out.println(">>> Got ID: " + id);
+
+          Clob clob = row.get(1, Clob.class);
+          System.out.println(">>> Got Clob Handle: " + (clob != null));
+
+          if (clob != null) {
+            // Fire and forget subscription just to see if it moves
+            clob.stream().subscribe(new Subscriber<>() {
+              @Override public void onSubscribe(Subscription s) {
+                System.out.println(">>> Clob: onSubscribe. Requesting all...");
+                s.request(Long.MAX_VALUE);
               }
-              return new EmptyPublisher<>();
-            })
+              @Override public void onNext(CharSequence buffer) {
+                System.out.println(">>> Clob: onNext! Bytes: " + buffer);
+              }
+              @Override public void onError(Throwable t) {
+                System.err.println(">>> Clob ERROR: " + t.getMessage());
+              }
+              @Override public void onComplete() {
+                System.out.println(">>> Clob: onComplete!");
+              }
+            });
+          }
+
+          // We are breaking the rules here to test if the driver lets us get the Bool
+          // immediately while the Blob stream is running asynchronously in the background.
+          Boolean bool = row.get(2, Boolean.class);
+          System.out.println(">>> Got Bool: " + bool);
+
+          Blob blob = row.get(3, Blob.class);
+          System.out.println(">>> Got Blob Handle: " + (blob != null));
+
+          if (blob != null) {
+            // Fire and forget subscription just to see if it moves
+            blob.stream().subscribe(new Subscriber<>() {
+              @Override public void onSubscribe(Subscription s) {
+                System.out.println(">>> BLOB: onSubscribe. Requesting all...");
+                s.request(Long.MAX_VALUE);
+              }
+              @Override public void onNext(ByteBuffer buffer) {
+                System.out.println(">>> BLOB: onNext! Bytes: " + buffer.remaining());
+              }
+              @Override public void onError(Throwable t) {
+                System.err.println(">>> BLOB ERROR: " + t.getMessage());
+              }
+              @Override public void onComplete() {
+                System.out.println(">>> BLOB: onComplete!");
+              }
+            });
+          }
+
+          // We are breaking the rules here to test if the driver lets us get the Bool
+          // immediately while the Blob stream is running asynchronously in the background.
+          Integer tinyint = row.get(4, Integer.class);
+          System.out.println(">>> Got Integer: " + tinyint);
+
+          return List.of(id, "Clob stream triggered asynchronously", bool, "Blob stream triggered asynchronously", tinyint);
+        }))
     );
 
     // Example of how a user would gracefully close it:
@@ -172,9 +226,10 @@ public class CSharpTdsClientPartial {
 
   private static final String querySql = """
       SET TEXTSIZE -1;
-      SELECT test_varbinary_max FROM dbo.AllDataTypes WHERE id = 1;
+      SELECT id, test_varchar_max, test_bit, test_varbinary_max, test_tinyint FROM dbo.AllDataTypes WHERE id = 1;
       """;
 
+//  SELECT id, test_varchar_max, test_tinyint, test_nvarchar_max, test_smallint, test_varbinary_max, test_bit FROM dbo.AllDataTypes WHERE id = 1;
   //  BiFunction<Row, RowMetadata, AllDataTypesRecord> partialDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
 //      null,          null,
 //      null,          null,
