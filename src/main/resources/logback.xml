@@ -9,5 +9,12 @@
         <appender-ref ref="STDOUT" />
     </root>
 
-    <logger name="org.tdslib" level="TRACE" />
+<!--    <logger name="org.tdslib" level="TRACE" />-->
+    <logger name="org.tdslib.javatdslib.reactive.AbstractQueueDrainPublisher" level="TRACE" />
+    <logger name="org.tdslib.javatdslib.reactive.StatefulRow" level="TRACE" />
+    <logger name="org.tdslib.javatdslib.tokens.StatefulTokenDecoder" level="TRACE" />
+    <logger name="org.tdslib.javatdslib.reactive.ReactiveResultVisitor" level="TRACE" />
+    <logger name="org.tdslib.javatdslib.transport.TdsChunkDecoder" level="TRACE" />
+    <logger name="org.tdslib.javatdslib.transport.TdsStreamHandler" level="TRACE" />
+
 </configuration>

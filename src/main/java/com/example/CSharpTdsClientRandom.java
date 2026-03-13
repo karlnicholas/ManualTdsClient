@@ -6,28 +6,16 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.spi.OutParameters;
-import io.r2dbc.spi.OutParametersMetadata;
-import io.r2dbc.spi.Parameter;
 import io.r2dbc.spi.Result;
-import io.r2dbc.spi.Row;
-import io.r2dbc.spi.RowMetadata;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.api.TdsConnectionFactory;
 
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -37,12 +25,18 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class CSharpTdsClientPartial {
-  public static void main(String[] args) throws Exception {
-    new CSharpTdsClientPartial().run();
+public class CSharpTdsClientRandom {
+  public static void main(String[] args) {
+    try {
+      // .join() blocks the main thread until the entire chain is complete,
+      // providing the same "wait" behavior as a latch but more cleanly.
+      new CSharpTdsClientRandom().run().join();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
-  private void run() throws Exception {
+  private CompletableFuture<Void> run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -51,15 +45,13 @@ public class CSharpTdsClientPartial {
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
         .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
-//        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, false)
-//        .option(TdsConnectionFactory.TRUST_STORE, "c:/users/karln/IdeaProjects/JavaTdsLibCopilot/myTrustStore.jks")
-//        .option(TdsConnectionFactory.TRUST_STORE_PASSWORD, "changeit")
         .build());
 
     System.out.println("Connecting to database...");
     Publisher<? extends Connection> connectionPublisher = connectionFactory.create();
 
-    CountDownLatch latch = new CountDownLatch(1);
+    // This future represents the "Life of the Program"
+    CompletableFuture<Void> programLife = new CompletableFuture<>();
 
     MappingProducer.from(connectionPublisher)
         .map(conn -> {
@@ -70,14 +62,14 @@ public class CSharpTdsClientPartial {
             throw new RuntimeException(e);
           }
         })
-        .doOnComplete(latch::countDown)
+        .doOnComplete(() -> programLife.complete(null))
         .doOnError(t -> {
           System.err.println("Connection/Run Failed: " + t.getMessage());
-          latch.countDown();
+          programLife.completeExceptionally(t);
         })
         .subscribe(System.out::println);
 
-    latch.await();
+    return programLife;
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
@@ -88,13 +80,16 @@ public class CSharpTdsClientPartial {
         res -> MappingProducer.from(res.map((row, meta) -> {
           System.out.println(">>> ROW HIT THE MAP FUNCTION!");
           Integer id = row.get(0, Integer.class);
+//          Boolean bool = row.get(1, Boolean.class);
+//          Byte tinyint = row.get(2, Byte.class);
+//          Integer finalInt = row.get(3, Integer.class);
           return List.of(id);
 
           // Build the chain but BLOCK at the end of THIS row's mapping
           // This allows fragments to be read because the Event Loop
           // isn't blocked UNTIL the chain is fully constructed and joined.
 //          try {
-//            return consumeLOB(row.get(1, Clob.class).stream(), "CLOB1")
+//            return consumeLOB(row.get(0, Clob.class).stream(), "CLOB1")
 //                .thenCompose(v -> {
 //                  Boolean bool = row.get(2, Boolean.class);
 //                  return consumeLOB(row.get(3, Clob.class).stream(), "CLOB2");
@@ -105,12 +100,13 @@ public class CSharpTdsClientPartial {
 //                })
 //                .thenApply(v -> {
 //                  Integer finalInt = row.get(6, Integer.class);
-//                  return List.of(id, "CLOB1", "bool", "CLOB2", "tiny_int", "BLOB", finalInt);
+//                  return List.of("CLOB1");
 //                }).get(); // <--- BLOCK HERE so the mapper returns the LIST, not the Future
 //
 //          } catch (Exception e) {
 //            throw new RuntimeException(e);
 //          }
+
         }))
     );
     // Simplified close logic
@@ -205,54 +201,18 @@ public class CSharpTdsClientPartial {
     latch.await();
   }
 
-  //  private static final String querySql = """
-  //      SELECT test_varchar_max FROM dbo.AllDataTypes WHERE test_varchar_max IS NOT NULL;
-  //      """;
-
-  //      SET TEXTSIZE -1;
-//      SELECT id, test_varchar_max, test_bit, test_nvarchar_max, test_tinyint, test_varbinary_max, test_int FROM dbo.AllDataTypes WHERE id = 1;
   private static final String querySql = """
       SET TEXTSIZE -1;
 -- Alternating Standard and LOB columns
-SELECT 
-  id                -- (0) INT
-FROM dbo.AllDataTypes WHERE id = 1;
+SELECT id FROM dbo.AllDataTypes;
 """;
 
-//-- Alternating Standard and LOB columns
-//      SELECT
+
 //  id,                -- (0) INT
-//  test_varchar_max,  -- (1) CLOB
+//  test_nvarchar_max,  -- (1) CLOB
 //  test_bit,          -- (2) BIT
 //  test_nvarchar_max, -- (3) CLOB
 //  test_tinyint,      -- (4) TINYINT
 //  test_varbinary_max,-- (5) BLOB
 //  test_int           -- (6) INT
-
-//  SELECT id, test_varchar_max, test_tinyint, test_nvarchar_max, test_smallint, test_varbinary_max, test_bit FROM dbo.AllDataTypes WHERE id = 1;
-  //  BiFunction<Row, RowMetadata, AllDataTypesRecord> partialDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,          null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      row.get(0, Clob.class),
-//      null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      null,
-//      null
-//  );
 }
