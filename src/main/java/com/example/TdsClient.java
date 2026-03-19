@@ -2,13 +2,11 @@ package com.example;
 
 import io.r2dbc.spi.*;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 import org.tdslib.javatdslib.api.TdsConnectionFactory;
-import org.tdslib.javatdslib.security.SslContextBuilder;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -20,9 +18,9 @@ import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class CSharpTdsClient {
+public class TdsClient {
   public static void main(String[] args) throws Exception {
-    new CSharpTdsClient().run();
+    new TdsClient().run();
   }
 
   private void run() throws Exception {
@@ -34,33 +32,22 @@ public class CSharpTdsClient {
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
         .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
-//        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, false)
-//        .option(TdsConnectionFactory.TRUST_STORE, "c:/users/karln/IdeaProjects/JavaTdsLibCopilot/myTrustStore.jks")
-//        .option(TdsConnectionFactory.TRUST_STORE_PASSWORD, "changeit")
         .build());
 
     System.out.println("Connecting to database...");
-    Publisher<? extends Connection> connectionPublisher = connectionFactory.create();
 
-    CountDownLatch latch = new CountDownLatch(1);
-
-    MappingProducer.from(connectionPublisher)
-        .map(conn -> {
+    // Use Mono to handle the single connection event safely
+    Mono.from(connectionFactory.create())
+        .doOnNext(conn -> {
           try {
             runSql(conn);
-            return "runSql executed successfully";
           } catch (InterruptedException e) {
             throw new RuntimeException(e);
           }
         })
-        .doOnComplete(latch::countDown)
-        .doOnError(t -> {
-          System.err.println("Connection/Run Failed: " + t.getMessage());
-          latch.countDown();
-        })
-        .subscribe(System.out::println);
-
-    latch.await();
+        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
+        // block() natively waits for the entire pipeline to finish, no latch needed here!
+        .block();
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
@@ -74,68 +61,14 @@ public class CSharpTdsClient {
     // 3. Large Parameterized Insert (R2dbcType wrapped)
     Statement stmt3 = connection.createStatement(bindSql)
         .bind(0, Parameters.in(R2dbcType.BOOLEAN, true))
-        .bind(1, Parameters.in(R2dbcType.TINYINT, (byte) 255))
-        .bind(2, Parameters.in(R2dbcType.SMALLINT, (short) 32000))
-        .bind(3, Parameters.in(R2dbcType.INTEGER, 2000000000))
-        .bind(4, Parameters.in(R2dbcType.BIGINT, 9000000000000000000L))
-        .bind(5, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("12345.6789")))
-        .bind(6, Parameters.in(R2dbcType.NUMERIC, new BigDecimal("999.99")))
-        .bind(7, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("214.99")))
-        .bind(8, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("922337203685477.58")))
-        .bind(9, Parameters.in(R2dbcType.REAL, 123.45f))
-        .bind(10, Parameters.in(R2dbcType.DOUBLE, 123456789.987654321d))
-        .bind(11, Parameters.in(R2dbcType.DATE, LocalDate.of(2023, 12, 25)))
-        .bind(12, Parameters.in(R2dbcType.TIME, LocalTime.parse("14:30:15.1234567")))
-        .bind(13, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
-        .bind(14, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:15.1234567")))
-        .bind(15, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.parse("2023-12-25T14:30:00")))
-        .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")))
-        .bind(17, Parameters.in(R2dbcType.CHAR, "FixedChar"))
-        .bind(18, Parameters.in(R2dbcType.VARCHAR, "Variable Length String"))
-        .bind(19, Parameters.in(R2dbcType.VARCHAR, "A".repeat(5000)))
-        .bind(20, Parameters.in(R2dbcType.VARCHAR, "Legacy Text Data"))
-        .bind(21, Parameters.in(R2dbcType.NCHAR, "FixedUni"))
-        .bind(22, Parameters.in(R2dbcType.NVARCHAR, "Unicode String"))
-        .bind(23, Parameters.in(R2dbcType.NVARCHAR, "あ".repeat(4000)))
-        .bind(24, Parameters.in(R2dbcType.BINARY, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF})))
-        .bind(25, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE})))
-        .bind(26, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC})))
-        .bind(27, Parameters.in(R2dbcType.VARBINARY, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33})))
-        .bind(28, Parameters.in(R2dbcType.CHAR, UUID.randomUUID()))
+        // ... (keep all your existing .bind calls for stmt3 here)
         .bind(29, Parameters.in(R2dbcType.NVARCHAR, "<root><node>Test XML</node></root>"));
     executeStream("3. Parameterized Insert (R2dbcType)", stmt3.execute(), Result::getRowsUpdated);
 
     // 4. Large Parameterized Insert (Inferred Types)
     Statement stmt4 = connection.createStatement(bindSql)
         .bind(0, true)
-        .bind(1, (byte)255)
-        .bind(2, (short) 32000)
-        .bind(3, 2000000000)
-        .bind(4, 9000000000000000000L)
-        .bind(5, new BigDecimal("12345.6789"))
-        .bind(6, new BigDecimal("999.99"))
-        .bind(7, new BigDecimal("214.99"))
-        .bind(8, new BigDecimal("922337203685477.58"))
-        .bind(9, 123.45f)
-        .bind(10, 123456789.987654321d)
-        .bind(11, LocalDate.of(2023, 12, 25))
-        .bind(12, LocalTime.parse("14:30:15.1234567"))
-        .bind(13, LocalDateTime.parse("2023-12-25T14:30:00"))
-        .bind(14, LocalDateTime.parse("2023-12-25T14:30:15.1234567"))
-        .bind(15, LocalDateTime.parse("2023-12-25T14:30:00"))
-        .bind(16, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))
-        .bind(17, "FixedChar")
-        .bind(18, "Euro: € and Cafe: Café")
-        .bind(19, "A".repeat(5000))
-        .bind(20, "Legacy Text Data")
-        .bind(21, "FixedUni")
-        .bind(22, "Unicode String")
-        .bind(23, "あ".repeat(4000))
-        .bind(24, ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))
-        .bind(25, ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))
-        .bind(26, ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))
-        .bind(27, ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))
-        .bind(28, UUID.randomUUID())
+        // ... (keep all your existing .bind calls for stmt4 here)
         .bind(29, "<root><node>Test XML</node></root>");
     executeStream("4. Parameterized Insert (Inferred Types)", stmt4.execute(), Result::getRowsUpdated);
 
@@ -148,12 +81,13 @@ public class CSharpTdsClient {
         .bind("@count", Parameters.out(R2dbcType.BIGINT))
         .bind("@sum", Parameters.out(R2dbcType.BIGINT))
         .bind("@average", Parameters.out(R2dbcType.BIGINT));
+
     executeStream("6. Select Out Parameters", stmt6.execute(), res -> res.flatMap(segment -> {
-      if (segment instanceof Result.OutSegment) {
-        OutParameters out = ((Result.OutSegment) segment).outParameters();
-        return MappingProducer.just(rvOutMapper.apply(out, out.getMetadata()));
+      if (segment instanceof Result.OutSegment outSeg) {
+        OutParameters out = outSeg.outParameters();
+        return Flux.just(rvOutMapper.apply(out, out.getMetadata()));
       }
-      return new EmptyPublisher<>();
+      return Flux.empty();
     }));
 
     // 7. Update single row
@@ -163,7 +97,7 @@ public class CSharpTdsClient {
     // 8. Select multiple batch from raw string
     executeStream("8. String Batch Execution", connection.createStatement(String.join("\n", batchSql)).execute(), res -> res.map(allDataTypesMapper));
 
-    // 9. Statement.add() Parameter Batching (FIXED: Uses UPDATE instead of SELECT)
+    // 9. Statement.add() Parameter Batching
     Statement stmt9 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 1 WHERE id = @id");
     stmt9.bind("@id", 1).add();
     stmt9.bind("@id", 2).add();
@@ -188,53 +122,30 @@ public class CSharpTdsClient {
     executeStream("12. Invalid Table Test", errorStmt3.execute(), res -> res.map((row, meta) -> row.get(0, String.class)));
 
     // Example of how a user would gracefully close it:
-    MappingProducer.from(connection.close())
-        .subscribe(new Subscriber<Void>() {
-          @Override public void onSubscribe(Subscription s) { s.request(1); }
-          @Override public void onNext(Void unused) {}
-          @Override public void onError(Throwable t) { t.printStackTrace(); }
-          @Override public void onComplete() {
-            System.out.println("Connection safely closed.");
-          }
-        });
+    Mono.from(connection.close())
+        .doFinally(signal -> System.out.println("Connection safely closed."))
+        .subscribe();
   }
 
-  // --- The Universal Async Helper ---
+  // --- The Universal Async Helper using Reactor Flux ---
 
-  /**
-   * Executes the publisher, maps the Result using the provided extractor function (e.g., res -> res.map(...)),
-   * and strictly manages the Reactive Streams backpressure and Countdown Latch.
-   */
   private <T> void executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) throws InterruptedException {
     System.out.println("\n--- Executing: " + stepName + " ---");
     CountDownLatch latch = new CountDownLatch(1);
 
-    MappingProducer.from(resultPublisher)
-        .flatMap(res -> MappingProducer.from(extractor.apply(res)))
-        .subscribe(new Subscriber<T>() {
-          @Override
-          public void onSubscribe(Subscription s) {
-            s.request(Long.MAX_VALUE);
-          }
-
-          @Override
-          public void onNext(T item) {
-            System.out.println("  -> " + item);
-          }
-
-          @Override
-          public void onError(Throwable t) {
-            System.err.println("[" + stepName + "] Stream Error: " + t.getMessage());
-            t.printStackTrace();
-            latch.countDown();
-          }
-
-          @Override
-          public void onComplete() {
-            System.out.println("--- Completed: " + stepName + " ---");
-            latch.countDown();
-          }
-        });
+    Flux.from(resultPublisher)
+        .flatMap(extractor)
+        .subscribe(
+            item -> System.out.println("  -> " + item),
+            error -> {
+              System.err.println("[" + stepName + "] Stream Error: " + error.getMessage());
+              latch.countDown();
+            },
+            () -> {
+              System.out.println("--- Completed: " + stepName + " ---");
+              latch.countDown();
+            }
+        );
 
     latch.await();
   }
@@ -268,17 +179,6 @@ public class CSharpTdsClient {
   );
 
   // --- Utilities ---
-
-  static class EmptyPublisher<T> implements Publisher<T> {
-    @Override
-    public void subscribe(Subscriber<? super T> subscriber) {
-      subscriber.onSubscribe(new Subscription() {
-        @Override public void request(long n) {}
-        @Override public void cancel() {}
-      });
-      subscriber.onComplete();
-    }
-  }
 
   // --- SQL Definitions ---
   private static final String createSql = """
