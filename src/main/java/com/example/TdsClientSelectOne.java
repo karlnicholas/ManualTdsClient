@@ -7,6 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -36,29 +37,51 @@ public class TdsClientSelectOne {
 
     System.out.println("Connecting to database...");
 
-    // Use Mono to handle the single connection event safely
+    // Use flatMap to chain the asynchronous query to the connection lifecycle
     Mono.from(connectionFactory.create())
-        .doOnNext(conn -> {
+        .flatMap(conn -> {
           try {
-            runSql(conn);
+            return runSql(conn); // Returns the Mono<Void> to be chained
           } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            return Mono.error(e);
           }
         })
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        // block() natively waits for the entire pipeline to finish, no latch needed here!
-        .block();
+        .block(); // Now this blocks until runSql's Mono<Void> completes!
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private void runSql(Connection connection) throws InterruptedException {
-    // 5. Select All (DQL -> Mapping)
-    executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper));
+  private Mono<Void> runSql(Connection connection) throws InterruptedException {
+    // 2. Return the Mono<Void> representing the entire operation
+    return executeStreamNoLatch("5. Read Clob Length", connection.createStatement(querySql).execute(),
+        res -> Flux.from(res.map((row, meta) -> {
+          Clob clob = row.get(0, Clob.class);
+          if (clob == null) {
+            return Mono.just(0L);
+          }
 
-    // Example of how a user would gracefully close it:
-    Mono.from(connection.close())
-        .doFinally(signal -> System.out.println("Connection safely closed."))
-        .subscribe();
+          // Stream the chunks and count the total characters
+          return Flux.from(clob.stream())
+              .reduce(0L, (accumulator, chunk) -> accumulator + chunk.length());
+
+        })).flatMap(mono -> mono) // Flatten the Mono<Long> into the main Flux
+    )
+        .then(Mono.from(connection.close())) // 3. Ensure connection closes AFTER the stream completes
+        .doFinally(signal -> System.out.println("Connection safely closed."));
+  }
+
+  // --- The Universal Async Helper (LATCH-FREE) ---
+
+  private <T> Mono<Void> executeStreamNoLatch(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
+    System.out.println("\n--- Executing: " + stepName + " ---");
+
+    // 4. Build the reactive pipeline without subscribing or blocking
+    return Flux.from(resultPublisher)
+        .flatMap(extractor)
+        .doOnNext(item -> System.out.println("  -> " + item))
+        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
+        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
+        .then(); // .then() converts Flux<T> into a Mono<Void> that completes when the Flux finishes
   }
 
   // --- The Universal Async Helper using Reactor Flux ---
@@ -106,8 +129,22 @@ public class TdsClientSelectOne {
       row.get(30, String.class)
   );
 
+
+//  private static final String querySql = """
+//    SET TEXTSIZE -1;
+//    SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 1000000000) AS LargeString;
+//    """;
+
+//  private static final String querySql = """
+//  SET TEXTSIZE -1;
+//  -- Replicate a char, then cast the massive result to VARBINARY(MAX)
+//  SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), 104857600) AS VARBINARY(MAX)) AS LargeBinary;
+//  """;
+//    SELECT test_varchar_max FROM dbo.AllDataTypes where id=1;
+//SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 1000000000) AS LargeString;
+
   private static final String querySql = """
     SET TEXTSIZE -1;
-    SELECT * FROM dbo.AllDataTypes where id=1;
+    SELECT test_varchar_max FROM dbo.AllDataTypes where id=1;
     """;
 }
