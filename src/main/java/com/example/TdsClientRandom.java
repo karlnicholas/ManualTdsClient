@@ -66,7 +66,7 @@ public class TdsClientRandom {
     Random random = new Random();
 
     // === LOOP: Generate many random queries ===
-    for (int i = 1; i <= 60000; i++) {   // ← feel free to change count
+    for (int i = 1; i <= 6000; i++) {   // ← feel free to change count
       // A. Random number of columns
       int numColumns = random.nextInt(allColumns.size()) + 1;
 

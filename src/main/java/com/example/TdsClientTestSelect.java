@@ -159,15 +159,15 @@ public class TdsClientTestSelect {
 //  );
 //
   BiFunction<Row, RowMetadata, List> namesDataTypesMapper = (row, meta) -> List.of(
-    row.get("test_tinyint", Object.class),
-    row.get("test_int", Object.class),
-    row.get("test_text", Object.class),
-    row.get("test_time", Object.class),
-    row.get("test_smalldatetime", Object.class),
-    row.get("test_bit", Object.class),
-    row.get("test_real", Object.class),
-    row.get("test_nchar", Object.class),
-    row.get("test_varbinary", Object.class),
+//    row.get("test_tinyint", Object.class),
+//    row.get("test_int", Object.class),
+//    row.get("test_text", Object.class),
+//    row.get("test_time", Object.class),
+//    row.get("test_smalldatetime", Object.class),
+//    row.get("test_bit", Object.class),
+//    row.get("test_real", Object.class),
+//    row.get("test_nchar", Object.class),
+//    row.get("test_varbinary", Object.class),
     row.get("test_varbinary_max", Object.class),
     row.get("test_dtoffset", Object.class)
   );
@@ -186,10 +186,16 @@ public class TdsClientTestSelect {
 //  );
   private static final String querySql = """
 SET TEXTSIZE -1;
-SELECT test_tinyint, test_int, test_text, test_time, test_smalldatetime, test_bit, test_real, test_nchar, test_varbinary, test_varbinary_max, test_dtoffset
+SELECT test_varbinary_max, test_dtoffset 
 FROM dbo.AllDataTypes
-WHERE id BETWEEN 1 AND 3;
+WHERE id=1;
 """;
+//  private static final String querySql = """
+//SET TEXTSIZE -1;
+//SELECT test_tinyint, test_int, test_text, test_time, test_smalldatetime, test_bit, test_real, test_nchar, test_varbinary, test_varbinary_max, test_dtoffset
+//FROM dbo.AllDataTypes
+//WHERE id BETWEEN 1 AND 3;
+//""";
 //  private static final String querySql = """
 //SET TEXTSIZE -1;
 //SELECT *
