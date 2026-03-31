@@ -6,7 +6,7 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsConnectionFactory;
+import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,7 +31,7 @@ public class TdsClientOrderSyncLobTest {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
     System.out.println("Connecting to database...");

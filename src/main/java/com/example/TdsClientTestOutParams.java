@@ -9,22 +9,12 @@ import io.r2dbc.spi.OutParametersMetadata;
 import io.r2dbc.spi.Parameters;
 import io.r2dbc.spi.R2dbcType;
 import io.r2dbc.spi.Result;
-import io.r2dbc.spi.Row;
-import io.r2dbc.spi.RowMetadata;
-import io.r2dbc.spi.Statement;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsConnectionFactory;
+import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -47,7 +37,7 @@ public class TdsClientTestOutParams {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
     System.out.println("Connecting to database...");

@@ -6,17 +6,11 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsConnectionFactory;
+import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -37,7 +31,7 @@ public class TdsClientOrderSyncTest {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
     System.out.println("Connecting to database...");

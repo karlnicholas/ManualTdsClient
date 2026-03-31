@@ -1,6 +1,10 @@
 package com.example.flow3.client;
 
-import com.example.flow3.library.*;
+import com.example.flow3.library.FlowRow;
+import com.example.flow3.library.FlowRowMetadata;
+import com.example.flow3.library.FlowRowPublisher;
+import com.example.flow3.library.FlowStatement;
+import com.example.flow3.library.FlowStatementImpl;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;

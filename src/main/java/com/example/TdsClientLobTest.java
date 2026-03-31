@@ -1,15 +1,25 @@
 package com.example;
 
-import io.r2dbc.spi.*;
+import io.r2dbc.spi.Blob;
+import io.r2dbc.spi.Clob;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactories;
+import io.r2dbc.spi.ConnectionFactory;
+import io.r2dbc.spi.ConnectionFactoryOptions;
+import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsConnectionFactory;
+import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
 import java.util.function.Function;
 
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
+import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
+import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
+import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
+import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
+import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClientLobTest {
   public static void main(String[] args) throws Exception {
@@ -24,7 +34,7 @@ public class TdsClientLobTest {
         .option(PASSWORD, "reactnonreact")
         .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
     System.out.println("Connecting to database...");

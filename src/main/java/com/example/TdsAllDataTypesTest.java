@@ -1,17 +1,29 @@
 package com.example;
 
-import io.r2dbc.spi.*;
-import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsConnectionFactory;
+import io.r2dbc.spi.Blob;
+import io.r2dbc.spi.Clob;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactories;
+import io.r2dbc.spi.ConnectionFactory;
+import io.r2dbc.spi.ConnectionFactoryOptions;
+import io.r2dbc.spi.Row;
+import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
-import java.util.function.Function;
 
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
+import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
+import static io.r2dbc.spi.ConnectionFactoryOptions.DRIVER;
+import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
+import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
+import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
+import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsAllDataTypesTest {
 
@@ -27,7 +39,7 @@ public class TdsAllDataTypesTest {
         .option(USER, "reactnonreact")
         .option(PASSWORD, "reactnonreact")
         .option(DATABASE, "reactnonreact")
-        .option(TdsConnectionFactory.TRUST_SERVER_CERTIFICATE, true)
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
     Mono.from(connectionFactory.create())
