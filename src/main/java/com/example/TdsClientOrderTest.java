@@ -43,8 +43,6 @@ public class TdsClientOrderTest {
 
   private Mono<Void> runSql(Connection connection) {
     // Query rearranged: Standard types first, LOB (_max) types last
-    String sql1 = "SELECT id, test_char FROM dbo.AllDataTypes WHERE id = 1;";
-
     String sql2 = "SET TEXTSIZE -1; SELECT " +
         "test_varchar_max, test_nvarchar_max " +
         "FROM dbo.AllDataTypes WHERE id = 1;";

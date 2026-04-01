@@ -84,29 +84,6 @@ public class TdsClientSelectOne {
 
   // --- The Universal Async Helper using Reactor Flux ---
 
-  private <T> void executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) throws InterruptedException {
-    System.out.println("\n--- Executing: " + stepName + " ---");
-    CountDownLatch latch = new CountDownLatch(1);
-
-    Flux.from(resultPublisher)
-        .flatMap(extractor)
-        .subscribe(
-            item -> System.out.println("  -> " + item),
-            error -> {
-              System.err.println("[" + stepName + "] Stream Error: " + error.getMessage());
-              latch.countDown();
-            },
-            () -> {
-              System.out.println("--- Completed: " + stepName + " ---");
-              latch.countDown();
-            }
-        );
-
-    latch.await();
-  }
-
-  // --- Mappers ---
-
   BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
       row.get(0, Integer.class),
       row.get(1, Boolean.class),
