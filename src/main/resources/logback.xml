@@ -11,7 +11,6 @@
 
 <!--    <logger name="org.tdslib" level="DEBUG" />-->
 <!--    <logger name="org.tdslib" level="TRACE" />-->
-<!--    <logger name="org.tdslib.javatdslib" level="TRACE" />-->
 <!--    <logger name="org.tdslib.javatdslib.reactive.StatefulRow" level="TRACE" />-->
 <!--    <logger name="org.tdslib.javatdslib.tokens.StatefulTokenDecoder" level="TRACE" />-->
 <!--    <logger name="org.tdslib.javatdslib.reactive.ReactiveResultVisitor" level="TRACE" />-->

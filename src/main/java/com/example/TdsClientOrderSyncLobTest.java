@@ -70,8 +70,8 @@ public class TdsClientOrderSyncLobTest {
     Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
-          Object value1 = row.get(1, String.class);
-          Object value0 = row.get(0, String.class);
+          Object value1 = row.get(0, String.class);
+          Object value0 = row.get(1, String.class);
           return sb.toString().trim();
         }))
         .subscribe(
