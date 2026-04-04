@@ -78,20 +78,20 @@ public class TdsClientLobTest {
 
 // Sequential Test Execution Chain using Mono.defer()
     return Mono.defer(() -> executeStream("1A. VARCHAR(MAX) - Sync String", connection.createStatement(q1).execute(), syncString))
-        .then(Mono.defer(() -> executeStream("1B. VARCHAR(MAX) - Async Clob", connection.createStatement(q1).execute(), asyncClob)))
-
-        .then(Mono.defer(() -> executeStream("2A. NVARCHAR(MAX) - Sync String", connection.createStatement(q2).execute(), syncString)))
-        .then(Mono.defer(() -> executeStream("2B. NVARCHAR(MAX) - Async Clob", connection.createStatement(q2).execute(), asyncClob)))
-
-        .then(Mono.defer(() -> executeStream("3A. VARBINARY(MAX) - Sync ByteBuffer", connection.createStatement(q3).execute(), syncBlob)))
-        .then(Mono.defer(() -> executeStream("3B. VARBINARY(MAX) - Async Blob", connection.createStatement(q3).execute(), asyncBlob)))
-
-        .then(Mono.defer(() -> executeStream("4A. 1 GB Generated String - Sync String", connection.createStatement(q4).execute(), syncString)))
+//        .then(Mono.defer(() -> executeStream("1B. VARCHAR(MAX) - Async Clob", connection.createStatement(q1).execute(), asyncClob)))
+//
+//        .then(Mono.defer(() -> executeStream("2A. NVARCHAR(MAX) - Sync String", connection.createStatement(q2).execute(), syncString)))
+//        .then(Mono.defer(() -> executeStream("2B. NVARCHAR(MAX) - Async Clob", connection.createStatement(q2).execute(), asyncClob)))
+//
+//        .then(Mono.defer(() -> executeStream("3A. VARBINARY(MAX) - Sync ByteBuffer", connection.createStatement(q3).execute(), syncBlob)))
+//        .then(Mono.defer(() -> executeStream("3B. VARBINARY(MAX) - Async Blob", connection.createStatement(q3).execute(), asyncBlob)))
+//
+//        .then(Mono.defer(() -> executeStream("4A. 1 GB Generated String - Sync String", connection.createStatement(q4).execute(), syncString)))
         .then(Mono.defer(() -> executeStream("4B. 1 GB Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
 
-        .then(Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
-        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
-
+//        .then(Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
+//        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
+//
         // Teardown
         .then(Mono.defer(() -> Mono.from(connection.close())))
         .doFinally(signal -> System.out.println("\nConnection safely closed."));

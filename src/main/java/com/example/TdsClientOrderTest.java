@@ -53,8 +53,8 @@ public class TdsClientOrderTest {
         .flatMap(result -> result.map((row, meta) -> {
           System.out.println("--- Mapping All Standard Columns ---");
 
-          return streamClob(row, "test_nvarchar_max").doOnNext(length -> System.out.println("  -> test_nvarchar_max length: " + length))
-              .then(streamClob(row, "test_varchar_max").doOnNext(length -> System.out.println("  -> test_varchar_max length: " + length)));
+          return streamClob(row, "test_varchar_max").doOnNext(length -> System.out.println("  -> test_nvarchar_max length: " + length))
+              .then(streamClob(row, "test_nvarchar_max").doOnNext(length -> System.out.println("  -> test_varchar_max length: " + length)));
         }))
         .flatMap(f -> f)
         .then();

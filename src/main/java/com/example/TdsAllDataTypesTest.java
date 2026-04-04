@@ -57,9 +57,9 @@ public class TdsAllDataTypesTest {
         "test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset, " +
         "test_char, test_varchar, test_text, test_nchar, test_nvarchar, test_binary, " +
         "test_varbinary, test_image, test_guid, test_xml, " +
-        "test_varchar_max " +
+//        "test_varchar_max " +
 //        "test_varchar_max, test_nvarchar_max " +
-//        ", test_nvarchar_max, test_varbinary_max " +
+        "test_varchar_max, test_varbinary_max " +
         "FROM dbo.AllDataTypes WHERE id = 1;";
 
 //    String sql = "SET TEXTSIZE -1; SELECT " +
@@ -111,16 +111,16 @@ public class TdsAllDataTypesTest {
           printColumn(row, "test_xml", String.class);
 
           // 2. Handle LOB Columns (Streaming)
-          streamClob(row, "test_varchar_max").doOnNext( length -> System.out.println("  -> test_varchar_max length: " + length));
-          return streamClob(row, "test_varchar_max").doOnNext( length -> System.out.println("  -> test_varchar_max length: " + length));
-//          return Flux.zip(
-//              streamClob(row, "test_varchar_max"),
-//              streamBlob(row, "test_varbinary_max")
-//          ).doOnNext(lengths -> {
-//            System.out.println("\n--- LOB Column Stream Results ---");
-//            System.out.println("  -> test_varchar_max length: " + lengths.getT1());
-//            System.out.println("  -> test_varbinary_max length: " + lengths.getT2());
-//          });
+//          streamClob(row, "test_varchar_max").doOnNext( length -> System.out.println("  -> test_varchar_max length: " + length));
+//          return streamClob(row, "test_varchar_max").doOnNext( length -> System.out.println("  -> test_varchar_max length: " + length));
+          return Flux.zip(
+              streamClob(row, "test_varchar_max"),
+              streamBlob(row, "test_varbinary_max")
+          ).doOnNext(lengths -> {
+            System.out.println("\n--- LOB Column Stream Results ---");
+            System.out.println("  -> test_varchar_max length: " + lengths.getT1());
+            System.out.println("  -> test_varbinary_max length: " + lengths.getT2());
+          });
         }))
         .flatMap(f -> f)
         .then();
