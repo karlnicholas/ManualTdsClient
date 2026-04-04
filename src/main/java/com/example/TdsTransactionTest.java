@@ -50,64 +50,46 @@ public class TdsTransactionTest {
         INSERT INTO dbo.TxnTest (id, val) VALUES (1, 100);
         """;
 
-//    return Mono.defer(() -> executeStream("0. Setup Temporary Table", connection.createStatement(setupSql).execute(), Result::getRowsUpdated))
+    return Mono.defer(() -> executeStream("0. Setup Temporary Table", connection.createStatement(setupSql).execute(), Result::getRowsUpdated))
 
-        return Mono.defer(() -> {
+        // --- TEST 1: COMMIT ---
+        .then(Mono.defer(() -> {
           System.out.println("\n--- Executing: 1. Transaction Commit Test ---");
           return Mono.from(connection.beginTransaction())
               .doOnSuccess(v -> System.out.println("  -> [BEGIN TRAN] executed"))
               .then(Mono.from(connection.createStatement("UPDATE dbo.TxnTest SET val = 200 WHERE id = 1").execute()))
+              .flatMap(res -> Mono.from(res.getRowsUpdated()))
               .doOnNext(count -> System.out.println("  -> Updated " + count + " rows inside transaction."))
               .then(Mono.from(connection.commitTransaction()))
               .doOnSuccess(v -> System.out.println("  -> [COMMIT TRAN] executed"))
-//              .then(Mono.from(connection.createStatement("SELECT val FROM dbo.TxnTest WHERE id = 1").execute()))
-//              .flatMap(res -> Mono.from(res.map((row, meta) -> row.get(0, Integer.class))))
-//              .doOnNext(val -> {
-//                if (val == 200) System.out.println("  -> [PASS] Value after COMMIT is 200");
-//                else System.out.println("  -> [FAIL] Value is " + val + " (Expected 200)");
-//              })
+              .then(Mono.from(connection.createStatement("SELECT val FROM dbo.TxnTest WHERE id = 1").execute()))
+              .flatMap(res -> Mono.from(res.map((row, meta) -> row.get(0, Integer.class))))
+              .doOnNext(val -> {
+                if (val == 200) System.out.println("  -> [PASS] Value after COMMIT is 200");
+                else System.out.println("  -> [FAIL] Value is " + val + " (Expected 200)");
+              })
               .then();
-        })
+        }))
 
-//    return Mono.defer(() -> executeStream("0. Setup Temporary Table", connection.createStatement(setupSql).execute(), Result::getRowsUpdated))
-//
-//        .then(Mono.defer(() -> {
-//          System.out.println("\n--- Executing: 1. Transaction Commit Test ---");
-//          return Mono.from(connection.beginTransaction())
-//              .doOnSuccess(v -> System.out.println("  -> [BEGIN TRAN] executed"))
-//              .then(Mono.from(connection.createStatement("UPDATE dbo.TxnTest SET val = 200 WHERE id = 1").execute()))
-//              .flatMap(res -> Mono.from(res.getRowsUpdated()))
-//              .doOnNext(count -> System.out.println("  -> Updated " + count + " rows inside transaction."))
-//              .then(Mono.from(connection.commitTransaction()))
-//              .doOnSuccess(v -> System.out.println("  -> [COMMIT TRAN] executed"))
-//              .then(Mono.from(connection.createStatement("SELECT val FROM dbo.TxnTest WHERE id = 1").execute()))
-//              .flatMap(res -> Mono.from(res.map((row, meta) -> row.get(0, Integer.class))))
-//              .doOnNext(val -> {
-//                if (val == 200) System.out.println("  -> [PASS] Value after COMMIT is 200");
-//                else System.out.println("  -> [FAIL] Value is " + val + " (Expected 200)");
-//              })
-//              .then();
-//        }))
+        // --- TEST 2: ROLLBACK ---
+        .then(Mono.defer(() -> {
+          System.out.println("\n--- Executing: 2. Transaction Rollback Test ---");
+          return Mono.from(connection.beginTransaction())
+              .doOnSuccess(v -> System.out.println("  -> [BEGIN TRAN] executed"))
+              .then(Mono.from(connection.createStatement("UPDATE dbo.TxnTest SET val = 999 WHERE id = 1").execute()))
+              .flatMap(res -> Mono.from(res.getRowsUpdated()))
+              .doOnNext(count -> System.out.println("  -> Updated " + count + " rows inside transaction."))
+              .then(Mono.from(connection.rollbackTransaction()))
+              .doOnSuccess(v -> System.out.println("  -> [ROLLBACK TRAN] executed"))
+              .then(Mono.from(connection.createStatement("SELECT val FROM dbo.TxnTest WHERE id = 1").execute()))
+              .flatMap(res -> Mono.from(res.map((row, meta) -> row.get(0, Integer.class))))
+              .doOnNext(val -> {
+                if (val == 200) System.out.println("  -> [PASS] Value after ROLLBACK reverted to 200");
+                else System.out.println("  -> [FAIL] Value is " + val + " (Expected 200)");
+              })
+              .then();
+        }))
 
-//        // --- TEST 2: ROLLBACK ---
-//        .then(Mono.defer(() -> {
-//          System.out.println("\n--- Executing: 2. Transaction Rollback Test ---");
-//          return Mono.from(connection.beginTransaction())
-//              .doOnSuccess(v -> System.out.println("  -> [BEGIN TRAN] executed"))
-//              .then(Mono.from(connection.createStatement("UPDATE dbo.TxnTest SET val = 999 WHERE id = 1").execute()))
-//              .flatMap(res -> Mono.from(res.getRowsUpdated()))
-//              .doOnNext(count -> System.out.println("  -> Updated " + count + " rows inside transaction."))
-//              .then(Mono.from(connection.rollbackTransaction()))
-//              .doOnSuccess(v -> System.out.println("  -> [ROLLBACK TRAN] executed"))
-//              .then(Mono.from(connection.createStatement("SELECT val FROM dbo.TxnTest WHERE id = 1").execute()))
-//              .flatMap(res -> Mono.from(res.map((row, meta) -> row.get(0, Integer.class))))
-//              .doOnNext(val -> {
-//                if (val == 200) System.out.println("  -> [PASS] Value after ROLLBACK reverted to 200");
-//                else System.out.println("  -> [FAIL] Value is " + val + " (Expected 200)");
-//              })
-//              .then();
-//        }))
-//
         // Teardown
         .then(Mono.defer(() -> Mono.from(connection.close())))
         .doFinally(signal -> System.out.println("\nConnection safely closed."));
