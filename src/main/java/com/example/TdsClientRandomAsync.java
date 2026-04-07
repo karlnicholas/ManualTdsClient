@@ -13,9 +13,8 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -24,7 +23,7 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClientRandomAsync {
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     new TdsClientRandomAsync().run();
   }
 
@@ -39,12 +38,11 @@ public class TdsClientRandomAsync {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database for Transaction Testing...");
+    System.out.println("Connecting to database for Async Load Testing...");
 
-    // usingWhen ensures the connection is safely closed regardless of success or error
     Mono.usingWhen(
             Mono.from(connectionFactory.create()),
-            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            this::runSql,
             conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
@@ -52,64 +50,67 @@ public class TdsClientRandomAsync {
   }
 
   private Mono<Void> runSql(Connection connection) {
-    // 1. Fetch columns FIRST
     return fetchColumnNames(connection)
-        // 2. ONLY when columns are done, fetch max ID
         .flatMap(allColumns -> fetchMaxId(connection)
-            // 3. Now we have both, proceed to the loop
             .flatMap(maxId -> {
-              System.out.println("Found max id = " + maxId);
-              Random random = new Random();
-
-              // 4. Execute 6000 random queries asynchronously using flatMap
-              // You can pass a second parameter to flatMap to control the max concurrency (e.g., flatMap(..., 100))
-              // By default, Reactor's flatMap concurrency is 256.
-              return Flux.range(1, 6000)
-                  .flatMap(i -> {
-                    int numColumns = random.nextInt(allColumns.size()) + 1;
-
-                    List<String> shuffledColumns = new ArrayList<>(allColumns);
-                    Collections.shuffle(shuffledColumns);
-                    List<String> selectedColumns = shuffledColumns.subList(0, numColumns); // Assigned once, now effectively final!
-
-                    String selectList = String.join(", ", selectedColumns);
-
-                    int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
-                    int numRows = random.nextInt(maxPossibleRows) + 1;
-
-                    List<Integer> possibleIds = IntStream.rangeClosed(1, maxId).boxed().collect(Collectors.toList());
-                    Collections.shuffle(possibleIds);
-                    List<Integer> selectedIds = possibleIds.subList(0, Math.min(numRows, possibleIds.size()));
-
-                    String idList = selectedIds.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining(", "));
-
-                    String whereClause = selectedIds.isEmpty() ? "WHERE 1=0" : "WHERE id IN (" + idList + ")";
-
-                    String dynamicQuery = """
-                          SET TEXTSIZE -1;
-                          SELECT %s
-                          FROM dbo.AllDataTypes
-                          %s
-                          ORDER BY id;
-                          """.formatted(selectList, whereClause);
-
-                    if (i % 1000 == 0) {
-                      System.out.println(i);
-                    }
-
-                    String stepName = "Random Query #" + i + " (" + numColumns + " cols, " + numRows + " rows)";
-
-                    // Wrap the execution in Mono.defer() to ensure the query execution and
-                    // statement creation happens when the publisher is actually subscribed to by flatMap
-                    return Mono.defer(() ->
-                        executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
-                    );
-                  })
-                  .then(); // Convert the Flux<Void> of 6000 queries into a single Mono<Void>
+              if (maxId <= 0) {
+                return Mono.error(new IllegalStateException("Table is empty (maxId=0), cannot run tests."));
+              }
+              return executeLoadTest(connection, allColumns, maxId);
             })
         );
+  }
+
+  private Mono<Void> executeLoadTest(Connection connection, List<String> allColumns, int maxId) {
+    System.out.println("Found max id = " + maxId + ". Starting async load test...");
+
+    // 4. Execute 6000 random queries asynchronously.
+    // We explicitly set concurrency to 256 (Reactor's default) to document the tuning knob.
+    // If your driver/server struggles, lower this number (e.g., to 32 or 64).
+    return Flux.range(1, 6000)
+        .flatMap(i -> {
+          // Use ThreadLocalRandom for thread-safe concurrent random generation
+          ThreadLocalRandom random = ThreadLocalRandom.current();
+
+          int numColumns = random.nextInt(allColumns.size()) + 1;
+          List<String> shuffledColumns = new ArrayList<>(allColumns);
+          Collections.shuffle(shuffledColumns, random);
+          List<String> selectedColumns = shuffledColumns.subList(0, numColumns);
+
+          String selectList = String.join(", ", selectedColumns);
+
+          int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
+          int numRows = random.nextInt(maxPossibleRows) + 1;
+
+          // CRITICAL OPTIMIZATION: Instead of building an IntStream of maxId,
+          // lazily generate a distinct stream of random integers.
+          String idList = random.ints(1, maxId + 1)
+              .distinct()
+              .limit(numRows)
+              .mapToObj(String::valueOf)
+              .collect(Collectors.joining(", "));
+
+          String whereClause = idList.isEmpty() ? "WHERE 1=0" : "WHERE id IN (" + idList + ")";
+
+          String dynamicQuery = """
+                SET TEXTSIZE -1;
+                SELECT %s
+                FROM dbo.AllDataTypes
+                %s
+                ORDER BY id;
+                """.formatted(selectList, whereClause);
+
+          if (i % 1000 == 0) {
+            System.out.println("Dispatched Random Query #" + i);
+          }
+
+          String stepName = "Query #" + i;
+
+          return Mono.defer(() ->
+              executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
+          );
+        }, 256)
+        .then();
   }
 
   // --- Latch-Free Helper Methods ---
@@ -139,7 +140,7 @@ public class TdsClientRandomAsync {
 
     return Flux.from(connection.createStatement(sql).execute())
         .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-        .single(); // Waits for the complete server response (DONE token)
+        .single();
   }
 
   private Mono<Void> executeRandomQuery(String stepName, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
@@ -156,9 +157,9 @@ public class TdsClientRandomAsync {
           }
           return sb.toString().trim();
         }))
-        // Consume the items reactively instead of using a subscriber block
+        // Consume the items reactively
         .doOnNext(item -> {})
         .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
-        .then(); // Signals completion to the flatMap
+        .then();
   }
 }
