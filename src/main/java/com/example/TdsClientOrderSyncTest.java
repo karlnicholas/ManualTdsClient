@@ -23,7 +23,7 @@ public class TdsClientOrderSyncTest {
     new TdsClientOrderSyncTest().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -34,59 +34,37 @@ public class TdsClientOrderSyncTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    Mono.from(connectionFactory.create())
-        .doOnNext(conn -> {
-          try {
-            runSql(conn);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        })
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
-  private void runSql(Connection connection) throws InterruptedException {
+  private Mono<Void>  runSql(Connection connection) {
     // 1. Discover columns
       // A. Random number of columns
       String query = "SELECT id, test_char FROM dbo.AllDataTypes where id=1";
 
 
-      executeQuery("Test", connection.createStatement(query).execute());
+      return executeQuery("Test", connection.createStatement(query).execute());
 
-    Mono.from(connection.close())
-        .doFinally(signal -> System.out.println("Connection safely closed."))
-        .subscribe();
   }
-
-
-  private void executeQuery(String stepName, Publisher<? extends Result> resultPublisher)
-      throws InterruptedException {
-//    System.out.println("\n--- " + stepName + " ---");
-    CountDownLatch latch = new CountDownLatch(1);
-
-    Flux.from(resultPublisher)
+  private Mono<Void> executeQuery(String stepName, Publisher<? extends Result> resultPublisher) {
+    return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
-          Object value1 = row.get(1, String.class);
-          Object value0 = row.get(0, String.class);
+          // Extract variables as requested
+          Object value1 = row.get(0, String.class);
+          Object value0 = row.get(1, String.class);
           return sb.toString().trim();
         }))
-        .subscribe(
-//            item -> System.out.println("  → " + item),
-            item -> {},
-            error -> {
-              System.err.println("[" + stepName + "] Error: " + error.getMessage());
-              latch.countDown();
-            },
-            () -> {
-//              System.out.println("--- Done: " + stepName + " ---");
-              latch.countDown();
-            }
-        );
-
-    latch.await();
+        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
+        .then(); // Converts the Flux to a Mono<Void> signaling completion
   }
 }

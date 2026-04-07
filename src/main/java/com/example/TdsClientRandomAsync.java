@@ -28,7 +28,7 @@ public class TdsClientRandomAsync {
     new TdsClientRandomAsync().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -39,13 +39,16 @@ public class TdsClientRandomAsync {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    Mono.from(connectionFactory.create())
-        // Use flatMap to chain the entire runSql operation
-        .flatMap(this::runSql)
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        .block(); // Block once at the very end
+        .block();
   }
 
   private Mono<Void> runSql(Connection connection) {
@@ -106,10 +109,7 @@ public class TdsClientRandomAsync {
                   })
                   .then(); // Convert the Flux<Void> of 6000 queries into a single Mono<Void>
             })
-        )
-        // 5. Close the connection after EVERYTHING completes
-        .then(Mono.from(connection.close()))
-        .doFinally(signal -> System.out.println("Connection safely closed."));
+        );
   }
 
   // --- Latch-Free Helper Methods ---

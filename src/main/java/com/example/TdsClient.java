@@ -17,6 +17,7 @@ import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -51,16 +52,23 @@ public class TdsClient {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    Mono.from(connectionFactory.create())
-        .flatMap(this::runSql) // Safely chain the connection to the operation
+    // Generate the traceId here so it's available for the lambda
+    UUID traceId = UUID.randomUUID();
+
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            conn -> runSql(conn, traceId), // Use a lambda instead of a method reference
+            conn -> Mono.from(conn.close())
+                .doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) {
+  private Mono<Void> runSql(Connection connection, UUID traceId) { // 3. Accept the traceId
 
     return Mono.defer(() -> executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated))
         .then(Mono.defer(() -> executeStream("2. Insert Initial Data", connection.createStatement(insertSql).execute(), Result::getRowsUpdated)))
@@ -176,9 +184,8 @@ public class TdsClient {
         .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)))
         .then(Mono.defer(() -> executeStream("12. Invalid Table Test", connection.createStatement("SELECT * FROM dbo.TableThatDoesNotExist").execute(), res -> res.map((row, meta) -> row.get(0, String.class)))))
 
-        // Teardown
-        .then(Mono.defer(() -> Mono.from(connection.close())))
-        .doFinally(signal -> System.out.println("Connection safely closed."));
+        // 4. INJECT THE CONTEXT HERE so it flows upstream to the entire query chain
+        .contextWrite(Context.of("trace-id", traceId));
   }
 
   // --- The Universal Async Helper using Reactor Flux ---

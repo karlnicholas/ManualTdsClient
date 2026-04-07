@@ -28,7 +28,7 @@ public class TdsClientTestSelect {
     new TdsClientTestSelect().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -39,54 +39,36 @@ public class TdsClientTestSelect {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    // Use Mono to handle the single connection event safely
-    Mono.from(connectionFactory.create())
-        .doOnNext(conn -> {
-          try {
-            runSql(conn);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        })
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        // block() natively waits for the entire pipeline to finish, no latch needed here!
         .block();
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private void runSql(Connection connection) throws InterruptedException {
+  private Mono<Void> runSql(Connection connection) {
     // 5. Select All (DQL -> Mapping)
-    executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(namesDataTypesMapper));
-
-    // Example of how a user would gracefully close it:
-    Mono.from(connection.close())
-        .doFinally(signal -> System.out.println("Connection safely closed."))
-        .subscribe();
+    return executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(namesDataTypesMapper));
   }
 
   // --- The Universal Async Helper using Reactor Flux ---
 
-  private <T> void executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) throws InterruptedException {
+  private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing: " + stepName + " ---");
-    CountDownLatch latch = new CountDownLatch(1);
 
-    Flux.from(resultPublisher)
+    // Build the reactive pipeline without subscribing or blocking
+    return Flux.from(resultPublisher)
         .flatMap(extractor)
-        .subscribe(
-            item -> System.out.println("  -> " + item),
-            error -> {
-              System.err.println("[" + stepName + "] Stream Error: " + error.getMessage());
-              latch.countDown();
-            },
-            () -> {
-              System.out.println("--- Completed: " + stepName + " ---");
-              latch.countDown();
-            }
-        );
-
-    latch.await();
+        .doOnNext(item -> System.out.println("  -> " + item))
+        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
+        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
+        .then(); // .then() converts Flux<T> into a Mono<Void> that completes when the Flux finishes
   }
 
   // --- Mappers ---

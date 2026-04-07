@@ -23,26 +23,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClientLobTest {
   public static void main(String[] args) throws Exception {
-    Thread.sleep(20000);
-    new TdsClientLobTest().run(true);
-    System.out.println("    System.gc();");
-    System.gc();
-    Thread.sleep(5000);
-    new TdsClientLobTest().run(false);
-    System.out.println("    System.gc();");
-    System.gc();
-    Thread.sleep(5000);
-    new TdsClientLobTest().run(true);
-    System.out.println("    System.gc();");
-    System.gc();
-    Thread.sleep(5000);
-    new TdsClientLobTest().run(false);
-    System.out.println("    System.gc();");
-    System.gc();
-    Thread.sleep(5000);
+    new TdsClientLobTest().run();
   }
 
-  private void run(boolean withSync) throws InterruptedException {
+  private void run() throws Exception {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -55,11 +39,48 @@ public class TdsClientLobTest {
 
     System.out.println("Connecting to database...");
 
+    // Establish the single shared connection
+    Connection conn = Mono.from(connectionFactory.create()).block();
 
-    Mono.from(connectionFactory.create())
-        .flatMap(conn -> runSql(conn, withSync).onErrorResume(e -> Mono.error(e)))
-        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        .block();
+    if (conn == null) {
+      System.err.println("Failed to establish a connection.");
+      return;
+    }
+
+    try {
+      Thread.sleep(20000);
+
+      runSql(conn, true).block();
+
+      System.out.println("    System.gc();");
+      System.gc();
+      Thread.sleep(5000);
+
+      runSql(conn, false).block();
+
+      System.out.println("    System.gc();");
+      System.gc();
+      Thread.sleep(5000);
+
+      runSql(conn, true).block();
+
+      System.out.println("    System.gc();");
+      System.gc();
+      Thread.sleep(5000);
+
+      runSql(conn, false).block();
+
+      System.out.println("    System.gc();");
+      System.gc();
+      Thread.sleep(5000);
+
+    } catch (Exception t) {
+      System.err.println("Run Failed: " + t.getMessage());
+    } finally {
+      // Safely close the connection after all tests and GCs are complete
+      Mono.from(conn.close()).block();
+      System.out.println("\nConnection safely closed.");
+    }
   }
 
   private Mono<Void> runSql(Connection connection, boolean withSync) {
@@ -93,7 +114,7 @@ public class TdsClientLobTest {
       return Flux.from(blob.stream()).reduce(0L, (acc, chunk) -> acc + chunk.remaining());
     })).flatMap(m -> m);
 
-// Sequential Test Execution Chain using Mono.defer()
+    // Sequential Test Execution Chain using Mono.defer()
     return Mono.defer(() -> executeStream("1A. VARCHAR(MAX) - Sync String", connection.createStatement(q1).execute(), syncString))
         .then(Mono.defer(() -> executeStream("1B. VARCHAR(MAX) - Async Clob", connection.createStatement(q1).execute(), asyncClob)))
 
@@ -107,12 +128,9 @@ public class TdsClientLobTest {
         .then(Mono.defer(() -> executeStream("4B. 1 GB Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
 
         .then(withSync ? Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)) : Mono.empty())
-        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
-
-        // Teardown
-        .then(Mono.defer(() -> Mono.from(connection.close())))
-        .doFinally(signal -> System.out.println("\nConnection safely closed."));
-    }
+        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)));
+    // Teardown logic removed from here
+  }
 
   // --- The Universal Async Helper ---
 

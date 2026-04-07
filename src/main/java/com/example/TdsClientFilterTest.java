@@ -38,10 +38,14 @@ public class TdsClientFilterTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    Mono.from(connectionFactory.create())
-        .flatMap(this::runSql)
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql,
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
@@ -110,9 +114,7 @@ public class TdsClientFilterTest {
     return Mono.defer(() -> executeFilterTest("1. Protocol Noise Reduction", connection.createStatement(sql1).execute(), filter1, extractIdMapper, validate1))
         .then(Mono.defer(() -> executeFilterTest("2. Multi-Result Set Demultiplexing", connection.createStatement(sql2).execute(), filter2, extractIdMapper, validate2)))
         .then(Mono.defer(() -> executeFilterTest("3. Pre-Materialization Memory Shields", connection.createStatement(sql3).execute(), filter3, extractIdMapper, validate3)))
-        .then(Mono.defer(() -> executeFilterTest("4. Volatile/In-Memory State Filtering", connection.createStatement(sql4).execute(), filter4, extractIdMapper, validate4)))
-        .then(Mono.defer(() -> Mono.from(connection.close())))
-        .doFinally(signal -> System.out.println("\nConnection safely closed."));
+        .then(Mono.defer(() -> executeFilterTest("4. Volatile/In-Memory State Filtering", connection.createStatement(sql4).execute(), filter4, extractIdMapper, validate4)));
   }
 
   /**

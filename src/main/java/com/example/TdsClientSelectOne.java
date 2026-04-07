@@ -11,6 +11,7 @@ import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,7 +19,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -33,7 +33,7 @@ public class TdsClientSelectOne {
     new TdsClientSelectOne().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -44,36 +44,36 @@ public class TdsClientSelectOne {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    // Use flatMap to chain the asynchronous query to the connection lifecycle
-    Mono.from(connectionFactory.create())
-        .flatMap(conn -> {
-          try {
-            return runSql(conn); // Returns the Mono<Void> to be chained
-          } catch (InterruptedException e) {
-            return Mono.error(e);
-          }
-        })
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        .block(); // Now this blocks until runSql's Mono<Void> completes!
+        .block();
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) throws InterruptedException {
-    // 2. Return the Mono<Void> representing the entire operation
-    return executeStreamNoLatch("5. Read Clob Length", connection.createStatement(querySql).execute(),
+  private Mono<Void> runSql(Connection connection) {
+    UUID traceId = UUID.randomUUID();
+    System.out.println("Injecting Trace ID: " + traceId);
+
+    // 3. Return the Mono<Void> representing the entire query operation
+    return executeStream("5. Read Clob Length", connection.createStatement(querySql).execute(),
         res -> Flux.from(res.map(allDataTypesMapper)))
-        .then(Mono.from(connection.close())) // 3. Ensure connection closes AFTER the stream completes
-        .doFinally(signal -> System.out.println("Connection safely closed."));
+        // 4. Inject the context specifically here so it ONLY applies to this single execution
+        .contextWrite(Context.of("trace-id", traceId));
   }
 
   // --- The Universal Async Helper (LATCH-FREE) ---
 
-  private <T> Mono<Void> executeStreamNoLatch(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
+  private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing: " + stepName + " ---");
 
-    // 4. Build the reactive pipeline without subscribing or blocking
+    // Build the reactive pipeline without subscribing or blocking
     return Flux.from(resultPublisher)
         .flatMap(extractor)
         .doOnNext(item -> System.out.println("  -> " + item))
@@ -117,20 +117,6 @@ public class TdsClientSelectOne {
       row.get(29, UUID.class),
       row.get(30, String.class)
   );
-
-
-//  private static final String querySql = """
-//    SET TEXTSIZE -1;
-//    SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 1000000000) AS LargeString;
-//    """;
-
-//  private static final String querySql = """
-//  SET TEXTSIZE -1;
-//  -- Replicate a char, then cast the massive result to VARBINARY(MAX)
-//  SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), 104857600) AS VARBINARY(MAX)) AS LargeBinary;
-//  """;
-//    SELECT test_varchar_max FROM dbo.AllDataTypes where id=1;
-//SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 1000000000) AS LargeString;
 
   private static final String querySql = """
     SET TEXTSIZE -1;

@@ -46,10 +46,14 @@ public class TdsClientErrorTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    Mono.from(connectionFactory.create())
-        .flatMap(this::runSql) // Safely chain the connection to the operation
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql,
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
@@ -57,11 +61,7 @@ public class TdsClientErrorTest {
   @SuppressWarnings("JpaQueryApiInspection")
   private Mono<Void> runSql(Connection connection) {
     return Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class))))
-        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)))
-
-        // Teardown
-        .then(Mono.defer(() -> Mono.from(connection.close())))
-        .doFinally(signal -> System.out.println("Connection safely closed."));
+        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)));
   }
 
   // --- The Universal Async Helper using Reactor Flux ---

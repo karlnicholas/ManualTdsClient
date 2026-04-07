@@ -29,7 +29,7 @@ public class TdsClientTestOutParams {
     new TdsClientTestOutParams().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -40,23 +40,20 @@ public class TdsClientTestOutParams {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    System.out.println("Connecting to database for Transaction Testing...");
 
-    // Use flatMap to chain the asynchronous query to the connection lifecycle
-    Mono.from(connectionFactory.create())
-        .flatMap(conn -> {
-          try {
-            return runSql(conn); // Returns the Mono<Void> to be chained
-          } catch (InterruptedException e) {
-            return Mono.error(e);
-          }
-        })
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
-        .block(); // Now this blocks until runSql's Mono<Void> completes!
+        .block();
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) throws InterruptedException {
+  private Mono<Void> runSql(Connection connection) {
     String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
 
     // 2. Return the Mono<Void> representing the entire operation
@@ -70,9 +67,7 @@ public class TdsClientTestOutParams {
                 return Flux.just(rvOutMapper.apply(out, out.getMetadata()));
               }
               return Flux.empty();
-            }))
-        .then(Mono.from(connection.close())) // 3. Ensure connection closes AFTER the stream completes
-        .doFinally(signal -> System.out.println("Connection safely closed."));
+            }));
   }
 
   // --- The Universal Async Helper (LATCH-FREE) ---

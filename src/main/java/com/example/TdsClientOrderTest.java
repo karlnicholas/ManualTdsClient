@@ -25,19 +25,24 @@ public class TdsClientOrderTest {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
         .option(PORT, 1433)
-        .option(USER, "reactnonreact")
         .option(PASSWORD, "reactnonreact")
+        .option(USER, "reactnonreact")
         .option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    Mono.from(connectionFactory.create())
-        .flatMap(conn -> runSql(conn)
-            .then(Mono.from(conn.close())))
-        .doOnError(e -> System.err.println("Test Failed: " + e.getMessage()))
+    System.out.println("Connecting to database for Transaction Testing...");
+
+    // usingWhen ensures the connection is safely closed regardless of success or error
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql, // Now perfectly matches (Connection) -> Mono<Void>
+            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
+        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
