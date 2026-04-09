@@ -26,7 +26,11 @@
             <artifactId>reactor-core</artifactId>
             <version>3.8.4</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.r2dbc</groupId>
+            <artifactId>r2dbc-pool</artifactId>
+            <version>1.0.2.RELEASE</version>
+        </dependency>
 <!--        <dependency>-->
 <!--            <groupId>org.tdslib.java</groupId>-->
 <!--            <artifactId>javatdslib</artifactId>-->

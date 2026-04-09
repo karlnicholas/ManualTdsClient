@@ -145,6 +145,8 @@ public class TdsClient {
 
         .then(Mono.defer(() -> executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper))))
 
+        .then(Mono.defer(() -> executeStream("5. Select All Names", connection.createStatement(bindSqlNames).execute(), res -> res.map(allDataTypesMapperNames))))
+
         .then(Mono.defer(() -> {
           String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
           Statement stmt6 = connection.createStatement(outSql)
@@ -224,6 +226,42 @@ public class TdsClient {
       row.get(26, byte[].class),          row.get(27, byte[].class),
       row.get(28, byte[].class),          row.get(29, UUID.class),
       row.get(30, String.class)
+  );
+
+  private static final String bindSqlNames = """
+    SELECT
+      id, test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric, 
+      test_smallmoney, test_money, test_real, test_float, test_date, test_time, test_datetime, 
+      test_datetime2, test_smalldatetime, test_dtoffset, test_char, test_varchar, test_varchar_max, 
+      test_text, test_nchar, test_nvarchar, test_nvarchar_max, test_binary, test_varbinary, 
+      test_varbinary_max, test_image, test_guid, test_xml
+    from dbo.AllDataTypes where id = 1
+""";
+//  @ptest_bit, @ptest_tinyint, @ptest_smallint, @ptest_int, @ptest_bigint, @ptest_decimal, @ptest_numeric,
+//  @ptest_smallmoney, @ptest_money, @ptest_real, @ptest_float, @ptest_date, @ptest_time, @ptest_datetime,
+//  @ptest_datetime2, @ptest_smalldatetime, @ptest_dtoffset, @ptest_char, @ptest_varchar, @ptest_varchar_max,
+//  @ptest_text, @ptest_nchar, @ptest_nvarchar, @ptest_nvarchar_max, @ptest_nvarchar_max, @ptest_varbinary,
+//  @ptest_varbinary_max, @ptest_image, @ptest_guid, @ptest_xml
+
+
+  BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapperNames = (row, meta) -> new AllDataTypesRecord(
+      row.get("id", Integer.class),          row.get("test_bit", Boolean.class),
+      row.get("test_tinyint", Byte.class),             row.get("test_smallint", Short.class),
+      row.get("test_int", Integer.class),          row.get("test_bigint", Long.class),
+      row.get("test_decimal", BigDecimal.class),       row.get("test_numeric", BigDecimal.class),
+      row.get("test_smallmoney", BigDecimal.class),       row.get("test_money", BigDecimal.class),
+      row.get("test_real", Float.class),           row.get("test_float", Double.class),
+      row.get("test_date", LocalDate.class),       row.get("test_time", LocalTime.class),
+      row.get("test_datetime", LocalDateTime.class),   row.get("test_datetime2", LocalDateTime.class),
+      row.get("test_smalldatetime", LocalDateTime.class),   row.get("test_dtoffset", OffsetDateTime.class),
+      row.get("test_char", String.class),
+      row.get("test_varchar", String.class),
+      row.get("test_varchar_max", String.class),          row.get("test_text", String.class),
+      row.get("test_nchar", String.class),          row.get("test_nchar", String.class),
+      row.get("test_nvarchar", String.class),          row.get("test_binary", byte[].class),
+      row.get("test_varbinary", byte[].class),          row.get("test_varbinary_max", byte[].class),
+      row.get("test_image", byte[].class),          row.get("test_guid", UUID.class),
+      row.get("test_xml", String.class)
   );
 
   BiFunction<OutParameters, OutParametersMetadata, List<Integer>> rvOutMapper = (out, meta) -> List.of(
