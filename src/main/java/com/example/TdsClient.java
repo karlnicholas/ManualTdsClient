@@ -183,6 +183,41 @@ public class TdsClient {
           return executeStream("4. Parameterized Insert (Named Types)", stmt4.execute(), Result::getRowsUpdated);
         }))
 
+        .then(Mono.defer(() -> {
+          Statement stmt4 = connection.createStatement(bindSqlNames)
+              .bind("@test_bit", true)
+              .bind("@test_tinyint", (byte)255)
+              .bind("@test_smallint", (short) 32000)
+              .bind("@test_int", 2000000000)
+              .bind("@test_bigint", 9000000000000000000L)
+              .bind("@test_decimal", new BigDecimal("12345.6789"))
+              .bind("@test_numeric", new BigDecimal("999.99"))
+              .bind("@test_smallmoney", new BigDecimal("214.99"))
+              .bind("@test_money", new BigDecimal("922337203685477.58"))
+              .bind("@test_real", 123.45f)
+              .bind("@test_float", 123456789.987654321d)
+              .bind("@test_date", LocalDate.of(2023, 12, 25))
+              .bind("@test_time", LocalTime.parse("14:30:15.1234567"))
+              .bind("@test_datetime", LocalDateTime.parse("2023-12-25T14:30:00"))
+              .bind("@test_datetime2", LocalDateTime.parse("2023-12-25T14:30:15.1234567"))
+              .bind("@test_smalldatetime", LocalDateTime.parse("2023-12-25T14:30:00"))
+              .bind("@test_dtoffset", OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))
+              .bind("@test_char", "FixedChar")
+              .bind("@test_varchar", "Euro: € and Cafe: Café")
+              .bind("@test_varchar_max", "A".repeat(5000))
+              .bind("@test_text", "Legacy Text Data")
+              .bind("@test_nchar", "FixedUni")
+              .bind("@test_nvarchar", "Unicode String")
+              .bind("@test_nvarchar_max", "あ".repeat(4000))
+              .bind("@test_binary", ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))
+              .bind("@test_varbinary", ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))
+              .bind("@test_varbinary_max", ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))
+              .bind("@test_image", ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))
+              .bind("@test_guid", UUID.randomUUID())
+              .bind("@test_xml", "<root><node>Test XML</node></root>");
+          return executeStream("4. Parameterized Insert (Named @ Types)", stmt4.execute(), Result::getRowsUpdated);
+        }))
+
         .then(Mono.defer(() -> executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper))))
 
         .then(Mono.defer(() -> executeStream("5. Select All Names", connection.createStatement(querySqlNames).execute(), res -> res.map(allDataTypesMapperNames))))
@@ -366,7 +401,7 @@ public class TdsClient {
 
   private static final String querySql = """
     SET TEXTSIZE -1;
-    SELECT * FROM dbo.AllDataTypes;
+    SELECT * FROM dbo.AllDataTypes where id = 1;
     """;
 
   private static final List<String> batchSql = List.of(
