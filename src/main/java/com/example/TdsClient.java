@@ -142,10 +142,50 @@ public class TdsClient {
               .bind(29, "<root><node>Test XML</node></root>");
           return executeStream("4. Parameterized Insert (Inferred Types)", stmt4.execute(), Result::getRowsUpdated);
         }))
+//    test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric,
+//        test_smallmoney, test_money, test_real, test_float, test_date, test_time, test_datetime,
+//        test_datetime2, test_smalldatetime, test_dtoffset, test_char, test_varchar, test_varchar_max,
+//        test_text, test_nchar, test_nvarchar, test_nvarchar_max, test_binary, test_varbinary,
+//        test_varbinary_max, test_image, test_guid, test_xml
+//
+        .then(Mono.defer(() -> {
+          Statement stmt4 = connection.createStatement(bindSqlNames)
+              .bind("test_bit", true)
+              .bind("test_tinyint", (byte)255)
+              .bind("test_smallint", (short) 32000)
+              .bind("test_int", 2000000000)
+              .bind("test_bigint", 9000000000000000000L)
+              .bind("test_decimal", new BigDecimal("12345.6789"))
+              .bind("test_numeric", new BigDecimal("999.99"))
+              .bind("test_smallmoney", new BigDecimal("214.99"))
+              .bind("test_money", new BigDecimal("922337203685477.58"))
+              .bind("test_real", 123.45f)
+              .bind("test_float", 123456789.987654321d)
+              .bind("test_date", LocalDate.of(2023, 12, 25))
+              .bind("test_time", LocalTime.parse("14:30:15.1234567"))
+              .bind("test_datetime", LocalDateTime.parse("2023-12-25T14:30:00"))
+              .bind("test_datetime2", LocalDateTime.parse("2023-12-25T14:30:15.1234567"))
+              .bind("test_smalldatetime", LocalDateTime.parse("2023-12-25T14:30:00"))
+              .bind("test_dtoffset", OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30"))
+              .bind("test_char", "FixedChar")
+              .bind("test_varchar", "Euro: € and Cafe: Café")
+              .bind("test_varchar_max", "A".repeat(5000))
+              .bind("test_text", "Legacy Text Data")
+              .bind("test_nchar", "FixedUni")
+              .bind("test_nvarchar", "Unicode String")
+              .bind("test_nvarchar_max", "あ".repeat(4000))
+              .bind("test_binary", ByteBuffer.wrap(new byte[]{(byte)0xDE, (byte)0xAD, (byte)0xBE, (byte)0xEF}))
+              .bind("test_varbinary", ByteBuffer.wrap(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}))
+              .bind("test_varbinary_max", ByteBuffer.wrap(new byte[]{(byte)0xFE, (byte)0xED, (byte)0xBA, (byte)0xCC}))
+              .bind("test_image", ByteBuffer.wrap(new byte[]{(byte)0x00, (byte)0x11, (byte)0x22, (byte)0x33}))
+              .bind("test_guid", UUID.randomUUID())
+              .bind("test_xml", "<root><node>Test XML</node></root>");
+          return executeStream("4. Parameterized Insert (Named Types)", stmt4.execute(), Result::getRowsUpdated);
+        }))
 
         .then(Mono.defer(() -> executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(allDataTypesMapper))))
 
-        .then(Mono.defer(() -> executeStream("5. Select All Names", connection.createStatement(bindSqlNames).execute(), res -> res.map(allDataTypesMapperNames))))
+        .then(Mono.defer(() -> executeStream("5. Select All Names", connection.createStatement(querySqlNames).execute(), res -> res.map(allDataTypesMapperNames))))
 
         .then(Mono.defer(() -> {
           String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
@@ -229,20 +269,29 @@ public class TdsClient {
   );
 
   private static final String bindSqlNames = """
-    SELECT
-      id, test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric, 
+    INSERT INTO dbo.AllDataTypes (
+      test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric, 
       test_smallmoney, test_money, test_real, test_float, test_date, test_time, test_datetime, 
       test_datetime2, test_smalldatetime, test_dtoffset, test_char, test_varchar, test_varchar_max, 
       test_text, test_nchar, test_nvarchar, test_nvarchar_max, test_binary, test_varbinary, 
       test_varbinary_max, test_image, test_guid, test_xml
-    from dbo.AllDataTypes where id = 1
-""";
-//  @ptest_bit, @ptest_tinyint, @ptest_smallint, @ptest_int, @ptest_bigint, @ptest_decimal, @ptest_numeric,
-//  @ptest_smallmoney, @ptest_money, @ptest_real, @ptest_float, @ptest_date, @ptest_time, @ptest_datetime,
-//  @ptest_datetime2, @ptest_smalldatetime, @ptest_dtoffset, @ptest_char, @ptest_varchar, @ptest_varchar_max,
-//  @ptest_text, @ptest_nchar, @ptest_nvarchar, @ptest_nvarchar_max, @ptest_nvarchar_max, @ptest_varbinary,
-//  @ptest_varbinary_max, @ptest_image, @ptest_guid, @ptest_xml
+    ) VALUES (
+  @test_bit, @test_tinyint, @test_smallint, @test_int, @test_bigint, @test_decimal, @test_numeric,
+  @test_smallmoney, @test_money, @test_real, @test_float, @test_date, @test_time, @test_datetime,
+  @test_datetime2, @test_smalldatetime, @test_dtoffset, @test_char, @test_varchar, @test_varchar_max,
+  @test_text, @test_nchar, @test_nvarchar, @test_nvarchar_max, @test_binary, @test_varbinary,
+  @test_varbinary_max, @test_image, @test_guid, @test_xml
+    )""";
 
+  private static final String querySqlNames = """
+    SELECT id, 
+      test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric, 
+      test_smallmoney, test_money, test_real, test_float, test_date, test_time, test_datetime, 
+      test_datetime2, test_smalldatetime, test_dtoffset, test_char, test_varchar, test_varchar_max, 
+      test_text, test_nchar, test_nvarchar, test_nvarchar_max, test_binary, test_varbinary, 
+      test_varbinary_max, test_image, test_guid, test_xml
+    from dbo.AllDataTypes where id = 1;
+""";
 
   BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapperNames = (row, meta) -> new AllDataTypesRecord(
       row.get("id", Integer.class),          row.get("test_bit", Boolean.class),
