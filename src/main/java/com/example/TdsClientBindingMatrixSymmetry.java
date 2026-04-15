@@ -1,0 +1,120 @@
+package com.example;
+
+import io.r2dbc.spi.*;
+import org.tdslib.javatdslib.api.TdsLibOptions;
+import reactor.core.publisher.Mono;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.time.*;
+import java.util.UUID;
+
+import static io.r2dbc.spi.ConnectionFactoryOptions.*;
+
+public class TdsClientBindingMatrixSymmetry {
+
+  public static void main(String[] args) {
+    new TdsClientBindingMatrixSymmetry().run();
+  }
+
+  private void run() {
+    ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
+        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(HOST, "localhost")
+        .option(PORT, 1433)
+        .option(PASSWORD, "reactnonreact")
+        .option(USER, "reactnonreact")
+        .option(DATABASE, "reactnonreact")
+        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
+        .build());
+
+    System.out.println("Connecting for Comprehensive Binding Matrix & Way Testing...");
+
+    Mono.usingWhen(
+        Mono.from(connectionFactory.create()),
+        this::runAllTests,
+        conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nTests complete. Connection closed."))
+    ).block();
+  }
+
+  private Mono<Void> runAllTests(Connection connection) {
+    return setupTable(connection)
+        .then(testWay1Positional(connection))
+        .then(testWay2ExplicitR2dbcType(connection))
+        .then(testWay3NamedNoAt(connection))
+        .then(testWay4NamedWithAt(connection));
+  }
+
+  private Mono<Void> setupTable(Connection connection) {
+    String ddl = "DROP TABLE IF EXISTS dbo.BindingSymmetry; " +
+        "CREATE TABLE dbo.BindingSymmetry (id INT IDENTITY(1,1), val_bit BIT, val_int INT, val_bigint BIGINT, " +
+        "val_decimal DECIMAL(18,4), val_dt2 DATETIME2, val_dtoffset DATETIMEOFFSET, val_varchar VARCHAR(MAX));";
+    return Mono.from(connection.createStatement(ddl).execute()).then();
+  }
+
+  /**
+   * Way 1: Positional Binding (0-based Index)
+   * Testing symmetry with core Java types.
+   */
+  private Mono<Void> testWay1Positional(Connection connection) {
+    System.out.println("\n--- Way 1: Positional Index Binding ---");
+    Statement stmt = connection.createStatement(
+        "INSERT INTO dbo.BindingSymmetry (val_bit, val_int, val_varchar) VALUES (@p0, @p1, @p2)");
+
+    stmt.bind(0, true)                       // bit -> Boolean
+        .bind(1, 2147483647)                 // int -> Integer
+        .bind(2, "Index Based Binding");     // varchar -> String
+
+    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+  }
+
+  /**
+   * Way 2: Explicit R2dbcType Binding
+   * Using Parameters.in() to ensure driver obeys the explicit type hint.
+   */
+  private Mono<Void> testWay2ExplicitR2dbcType(Connection connection) {
+    System.out.println("\n--- Way 2: Explicit R2dbcType Binding ---");
+    Statement stmt = connection.createStatement(
+        "INSERT INTO dbo.BindingSymmetry (val_bigint, val_decimal, val_dt2) VALUES (@p0, @p1, @p2)");
+
+    stmt.bind(0, Parameters.in(R2dbcType.BIGINT, 9223372036854775807L))
+        .bind(1, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("123.4567")))
+        .bind(2, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.now()));
+
+    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+  }
+
+  /**
+   * Way 3: Named Binding (No @ prefix)
+   * Testing symmetry using ALTERNATIVE types from your decoder matrix.
+   */
+  private Mono<Void> testWay3NamedNoAt(Connection connection) {
+    System.out.println("\n--- Way 3: Named Binding (No @) - Symmetry Testing ---");
+    Statement stmt = connection.createStatement(
+        "INSERT INTO dbo.BindingSymmetry (val_bit, val_int, val_decimal) VALUES (@myBit, @myInt, @myDec)");
+
+    // Testing alternative mappings found in NumericDecoder convertSimple
+    stmt.bind("myBit", (byte) 1)              // bit -> Byte
+        .bind("myInt", (short) 32767)         // int -> Short
+        .bind("myDec", new BigInteger("999")); // decimal -> BigInteger
+
+    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+  }
+
+  /**
+   * Way 4: Named Binding (With @ prefix)
+   * Testing symmetry for temporal and complex types.
+   */
+  private Mono<Void> testWay4NamedWithAt(Connection connection) {
+    System.out.println("\n--- Way 4: Named Binding (With @) - Symmetry Testing ---");
+    Statement stmt = connection.createStatement(
+        "INSERT INTO dbo.BindingSymmetry (val_dtoffset, val_varchar) VALUES (@atOffset, @atStr)");
+
+    // Testing temporal symmetry from DateTimeDecoder
+    stmt.bind("@atOffset", OffsetDateTime.now()) // datetimeoffset -> OffsetDateTime
+        .bind("@atStr", "Named With At Binding");
+
+    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+  }
+}
