@@ -44,14 +44,14 @@ public class TdsClientTypeMatrix {
 
     Mono.usingWhen(
             Mono.from(connectionFactory.create()),
-            this::runTypeTests,
+            this::runSql,
             conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
-  private Mono<Void> runTypeTests(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     System.out.println("Starting comprehensive type mapping tests...\n");
 
     // Chain all tests sequentially

@@ -57,7 +57,7 @@ public class TdsClientSelectOne {
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     UUID traceId = UUID.randomUUID();
     System.out.println("Injecting Trace ID: " + traceId);
 

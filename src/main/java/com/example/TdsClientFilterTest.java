@@ -50,7 +50,7 @@ public class TdsClientFilterTest {
         .block();
   }
 
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
 
     // 1. Protocol Noise Reduction (Type Filtering)
     // SQL Server sends string messages via PRINT, followed by tabular data.

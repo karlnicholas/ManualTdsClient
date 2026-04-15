@@ -59,7 +59,7 @@ public class TdsClientErrorTest {
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     return Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class))))
         .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)));
   }

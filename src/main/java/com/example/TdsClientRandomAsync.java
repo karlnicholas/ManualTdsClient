@@ -49,7 +49,7 @@ public class TdsClientRandomAsync {
         .block();
   }
 
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     return fetchColumnNames(connection)
         .flatMap(allColumns -> fetchMaxId(connection)
             .flatMap(maxId -> {

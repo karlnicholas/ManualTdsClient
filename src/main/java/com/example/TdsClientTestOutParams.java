@@ -53,7 +53,7 @@ public class TdsClientTestOutParams {
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     String outSql = "SELECT @count = COUNT(*), @sum = SUM(postCount), @average = AVG(postCount) FROM dbo.users";
 
     // 2. Return the Mono<Void> representing the entire operation

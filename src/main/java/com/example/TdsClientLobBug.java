@@ -39,14 +39,14 @@ public class TdsClientLobBug {
     // usingWhen ensures the connection is safely closed regardless of success or error
     Mono.usingWhen(
             Mono.from(connectionFactory.create()),
-            this::executeComprehensiveTest,
+            this::runSql,
             conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
-  private Mono<Void> executeComprehensiveTest(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     // Query rearranged: Standard types first, LOB (_max) types last
     String sql = "SET TEXTSIZE -1; SELECT " +
         "test_varchar_max, test_nvarchar_max " +

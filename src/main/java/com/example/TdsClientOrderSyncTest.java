@@ -46,7 +46,7 @@ public class TdsClientOrderSyncTest {
         .block();
   }
 
-  private Mono<Void>  runSql(Connection connection) {
+  public Mono<Void>  runSql(Connection connection) {
     // 1. Discover columns
       // A. Random number of columns
       String query = "SELECT id, test_char FROM dbo.AllDataTypes where id=1";

@@ -41,14 +41,14 @@ public class TdsTransactionTestSimple {
     // usingWhen ensures the connection is safely closed regardless of success or error
     Mono.usingWhen(
             Mono.from(connectionFactory.create()),
-            this::runTxnTests,
+            this::runSql,
             conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
-  private Mono<Void> runTxnTests(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     String setupSql = """
         DROP TABLE IF EXISTS dbo.TxnTest;
         CREATE TABLE dbo.TxnTest (id INT, val INT);

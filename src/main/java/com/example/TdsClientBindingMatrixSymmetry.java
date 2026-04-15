@@ -33,12 +33,12 @@ public class TdsClientBindingMatrixSymmetry {
 
     Mono.usingWhen(
         Mono.from(connectionFactory.create()),
-        this::runAllTests,
+        this::runSql,
         conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nTests complete. Connection closed."))
     ).block();
   }
 
-  private Mono<Void> runAllTests(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     return setupTable(connection)
         .then(testWay1Positional(connection))
         .then(testWay2ExplicitR2dbcType(connection))
@@ -48,8 +48,16 @@ public class TdsClientBindingMatrixSymmetry {
 
   private Mono<Void> setupTable(Connection connection) {
     String ddl = "DROP TABLE IF EXISTS dbo.BindingSymmetry; " +
-        "CREATE TABLE dbo.BindingSymmetry (id INT IDENTITY(1,1), val_bit BIT, val_int INT, val_bigint BIGINT, " +
-        "val_decimal DECIMAL(18,4), val_dt2 DATETIME2, val_dtoffset DATETIMEOFFSET, val_varchar VARCHAR(MAX));";
+        "CREATE TABLE dbo.BindingSymmetry (" +
+        "id INT IDENTITY(1,1) PRIMARY KEY, " +
+        "val_bit BIT NULL, " +
+        "val_int INT NULL, " +
+        "val_bigint BIGINT NULL, " +
+        "val_decimal DECIMAL(18,4) NULL, " +
+        "val_dt2 DATETIME2 NULL, " +
+        "val_dtoffset DATETIMEOFFSET NULL, " +
+        "val_varchar VARCHAR(MAX) NULL" +
+        ");";
     return Mono.from(connection.createStatement(ddl).execute()).then();
   }
 

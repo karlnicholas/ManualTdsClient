@@ -52,7 +52,7 @@ public class TdsClientTestSelect {
   }
 
   @SuppressWarnings("JpaQueryApiInspection")
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     // 5. Select All (DQL -> Mapping)
     return executeStream("5. Select All", connection.createStatement(querySql).execute(), res -> res.map(namesDataTypesMapper));
   }

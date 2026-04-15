@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
 import java.time.*;
+import java.util.Objects;
 import java.util.UUID;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
@@ -30,7 +31,7 @@ public class TdsClientExhaustiveNonNumericTest {
 
     Mono.usingWhen(
         Mono.from(connectionFactory.create()),
-        this::runExhaustiveMatrix,
+        this::runSql,
         conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nNon-Numeric Matrix tests complete."))
     ).block();
   }
@@ -38,7 +39,7 @@ public class TdsClientExhaustiveNonNumericTest {
   // A simple record to hold the permutation data
   record NonNumericTestScenario(String columnName, Object javaValue, String description) {}
 
-  private Mono<Void> runExhaustiveMatrix(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     System.out.println("\n--- Running Exhaustive Non-Numeric Matrix (Index-Based) ---");
 
     byte[] sampleBytes = new byte[]{(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE};
@@ -103,25 +104,41 @@ public class TdsClientExhaustiveNonNumericTest {
         new NonNumericTestScenario("test_image", sampleByteBuffer, "ByteBuffer to IMAGE")
     );
 
-    // Process sequentially to keep logs readable
-    return scenarios.concatMap(scenario -> {
+    // Wrap execution in a transaction isolation boundary
+    return Mono.from(connection.beginTransaction())
+        .doOnSuccess(v -> System.out.println("  -> [BEGIN TRAN] Started test isolation boundary"))
+        .then(scenarios.concatMap(scenario -> {
 
-      // The SQL Fix: Ensure test_bit is always populated to satisfy the NOT NULL constraint
-      String sql;
-      if ("test_bit".equals(scenario.columnName())) {
-        sql = "INSERT INTO dbo.AllDataTypes (test_bit) VALUES (@p0)";
-      } else {
-        sql = "INSERT INTO dbo.AllDataTypes (test_bit, " + scenario.columnName() + ") VALUES (1, @p0)";
-      }
+          // Use OUTPUT INSERTED for immediate visual validation
+          String sql;
+          if ("test_bit".equals(scenario.columnName())) {
+            sql = "INSERT INTO dbo.AllDataTypes (test_bit) OUTPUT INSERTED.test_bit VALUES (@p0)";
+          } else {
+            sql = "INSERT INTO dbo.AllDataTypes (test_bit, " + scenario.columnName() +
+                ") OUTPUT INSERTED." + scenario.columnName() + " VALUES (1, @p0)";
+          }
 
-      // The Reactive Fix: Use Flux.from() and .flatMap() to ensure we intercept errors immediately
-      return Flux.from(connection.createStatement(sql)
-              .bind(0, scenario.javaValue())
-              .execute())
-          .flatMap(Result::getRowsUpdated)
-          .doOnNext(rows -> System.out.println("  ✓ " + scenario.description() + " -> Success"))
-          .doOnError(e -> System.err.println("  ✗ " + scenario.description() + " -> FAILED: " + e.getMessage()))
-          .onErrorResume(e -> Mono.empty()); // Swallow error to let the stream continue
-    }).then();
+          return Mono.from(connection.createStatement(sql)
+                  .bind(0, scenario.javaValue())
+                  .execute())
+              .flatMap(result -> Mono.from(result.map((row, meta) -> row.get(0))))
+              .doOnNext(retrievedValue -> {
+                // Using deepEquals to safely compare byte[] arrays
+                boolean matches = Objects.deepEquals(scenario.javaValue(), retrievedValue);
+                if (matches) {
+                  System.out.println("  ✓ PASS | " + scenario.description());
+                } else {
+                  System.out.println("  ✗ DIFF | " + scenario.description());
+                  System.out.printf("      Sent:     [%s] %s%n", scenario.javaValue().getClass().getSimpleName(), scenario.javaValue());
+                  System.out.printf("      Received: [%s] %s%n", retrievedValue != null ? retrievedValue.getClass().getSimpleName() : "null", retrievedValue);
+                }
+              })
+              .doOnError(e -> System.err.println("  ✗ CRASH | " + scenario.description() + " -> " + e.getMessage()))
+              .onErrorResume(e -> Mono.empty())
+              .then();
+        }).then())
+        // Rollback to drop all inserted test data
+        .then(Mono.from(connection.rollbackTransaction()))
+        .doOnSuccess(v -> System.out.println("  -> [ROLLBACK TRAN] Cleaned up exhaustive non-numeric test data"));
   }
 }

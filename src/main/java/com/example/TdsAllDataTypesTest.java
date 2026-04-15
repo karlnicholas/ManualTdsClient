@@ -43,13 +43,13 @@ public class TdsAllDataTypesTest {
         .build());
 
     Mono.from(connectionFactory.create())
-        .flatMap(conn -> executeComprehensiveTest(conn)
+        .flatMap(conn -> runSql(conn)
             .then(Mono.from(conn.close())))
         .doOnError(e -> System.err.println("Test Failed: " + e.getMessage()))
         .block();
   }
 
-  private Mono<Void> executeComprehensiveTest(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     // Query rearranged: Standard types first, LOB (_max) types last
     String sql = "SET TEXTSIZE -1; SELECT " +
         "id, test_bit, test_tinyint, test_smallint, test_int, test_bigint, " +

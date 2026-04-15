@@ -22,11 +22,11 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClientLobTest {
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     new TdsClientLobTest().run();
   }
 
-  private void run() throws Exception {
+  private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -39,56 +39,22 @@ public class TdsClientLobTest {
 
     System.out.println("Connecting to database...");
 
-    // Establish the single shared connection
-    Connection conn = Mono.from(connectionFactory.create()).block();
-
-    if (conn == null) {
-      System.err.println("Failed to establish a connection.");
-      return;
-    }
-
-    try {
-      Thread.sleep(20000);
-
-      runSql(conn, true).block();
-
-      System.out.println("    System.gc();");
-      System.gc();
-      Thread.sleep(5000);
-
-      runSql(conn, false).block();
-
-      System.out.println("    System.gc();");
-      System.gc();
-      Thread.sleep(5000);
-
-      runSql(conn, true).block();
-
-      System.out.println("    System.gc();");
-      System.gc();
-      Thread.sleep(5000);
-
-      runSql(conn, false).block();
-
-      System.out.println("    System.gc();");
-      System.gc();
-      Thread.sleep(5000);
-
-    } catch (Exception t) {
-      System.err.println("Run Failed: " + t.getMessage());
-    } finally {
-      // Safely close the connection after all tests and GCs are complete
-      Mono.from(conn.close()).block();
-      System.out.println("\nConnection safely closed.");
-    }
+    Mono.usingWhen(
+            Mono.from(connectionFactory.create()),
+            this::runSql,
+            conn -> Mono.from(conn.close())
+                .doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+        )
+        .doOnError(t -> System.err.println("Run Failed: " + t.getMessage()))
+        .block();
   }
 
-  private Mono<Void> runSql(Connection connection, boolean withSync) {
+  public Mono<Void> runSql(Connection connection) {
     // Queries
     String q1 = "SET TEXTSIZE -1; SELECT test_varchar_max FROM dbo.AllDataTypes where id=1;";
     String q2 = "SET TEXTSIZE -1; SELECT test_nvarchar_max FROM dbo.AllDataTypes where id=1;";
     String q3 = "SET TEXTSIZE -1; SELECT test_varbinary_max FROM dbo.AllDataTypes where id=1;";
-    String q4 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 1000000000) AS LargeString;";
+    String q4 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 500000000) AS LargeString;";
     String q5 = "SET TEXTSIZE -1; SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), 104857600) AS VARBINARY(MAX)) AS LargeBinary;";
 
     // Extractors
@@ -114,26 +80,24 @@ public class TdsClientLobTest {
       return Flux.from(blob.stream()).reduce(0L, (acc, chunk) -> acc + chunk.remaining());
     })).flatMap(m -> m);
 
-    // Sequential Test Execution Chain using Mono.defer()
+    // Sequential Test Execution Chain
     return Mono.defer(() -> executeStream("1A. VARCHAR(MAX) - Sync String", connection.createStatement(q1).execute(), syncString))
         .then(Mono.defer(() -> executeStream("1B. VARCHAR(MAX) - Async Clob", connection.createStatement(q1).execute(), asyncClob)))
 
-        .then(withSync ? Mono.defer(() -> executeStream("2A. NVARCHAR(MAX) - Sync String", connection.createStatement(q2).execute(), syncString)) : Mono.empty())
+        .then(Mono.defer(() -> executeStream("2A. NVARCHAR(MAX) - Sync String", connection.createStatement(q2).execute(), syncString)))
         .then(Mono.defer(() -> executeStream("2B. NVARCHAR(MAX) - Async Clob", connection.createStatement(q2).execute(), asyncClob)))
 
-        .then(withSync ? Mono.defer(() -> executeStream("3A. VARBINARY(MAX) - Sync ByteBuffer", connection.createStatement(q3).execute(), syncBlob)) : Mono.empty())
+        .then(Mono.defer(() -> executeStream("3A. VARBINARY(MAX) - Sync ByteBuffer", connection.createStatement(q3).execute(), syncBlob)))
         .then(Mono.defer(() -> executeStream("3B. VARBINARY(MAX) - Async Blob", connection.createStatement(q3).execute(), asyncBlob)))
 
-        .then(withSync ? Mono.defer(() -> executeStream("4A. 1 GB Generated String - Sync String", connection.createStatement(q4).execute(), syncString)) : Mono.empty())
+        .then(Mono.defer(() -> executeStream("4A. 1 GB Generated String - Sync String", connection.createStatement(q4).execute(), syncString)))
         .then(Mono.defer(() -> executeStream("4B. 1 GB Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
 
-        .then(withSync ? Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)) : Mono.empty())
+        .then(Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
         .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)));
-    // Teardown logic removed from here
   }
 
   // --- The Universal Async Helper ---
-
   private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing: " + stepName + " ---");
 

@@ -44,7 +44,7 @@ public class TdsClientOrderSyncLobTest {
         .block();
   }
 
-  private Mono<Void> runSql(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     // 1. Discover columns
     // A. Random number of columns
     String query = "SELECT test_varchar_max, test_nvarchar_max FROM dbo.AllDataTypes where id=1";

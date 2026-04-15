@@ -53,14 +53,14 @@ public class TdsClientXmlStream {
 
     Mono.usingWhen(
             Mono.from(connectionFactory.create()),
-            this::runXmlStreamTest,
+            this::runSql,
             conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();
   }
 
-  private Mono<Void> runXmlStreamTest(Connection connection) {
+  public Mono<Void> runSql(Connection connection) {
     String massiveXmlSql = """
     SELECT CAST(
         '<root>' 

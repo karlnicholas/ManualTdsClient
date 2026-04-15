@@ -65,7 +65,7 @@ public class TdsClientRandomPool {
         .block();
   }
 
-  private Mono<Void> runSql(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     // Both setup methods now borrow a connection from the pool
     return fetchColumnNames(pool)
         .flatMap(allColumns -> fetchMaxId(pool)
