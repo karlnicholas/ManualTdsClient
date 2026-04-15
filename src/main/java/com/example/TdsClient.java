@@ -1,5 +1,7 @@
 package com.example;
 
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Batch;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
@@ -21,6 +23,7 @@ import reactor.util.context.Context;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -37,7 +40,7 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClient {
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     new TdsClient().run();
   }
 
@@ -52,23 +55,43 @@ public class TdsClient {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database for Transaction Testing...");
+    // Configure a simple pool for the standalone client
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(2)
+        .maxSize(10)
+        .maxIdleTime(Duration.ofMinutes(10))
+        .build();
 
-    // Generate the traceId here so it's available for the lambda
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Connecting to database pool for Transaction Testing...");
+
     UUID traceId = UUID.randomUUID();
 
+    // Manage the Pool lifecycle
     Mono.usingWhen(
-            Mono.from(connectionFactory.create()),
-            conn -> runSql(conn, traceId), // Use a lambda instead of a method reference
-            conn -> Mono.from(conn.close())
-                .doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+            Mono.just(pool),
+            p -> runSql(p, traceId),
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nConnection Pool safely closed."))
         )
-        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
+        .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
   }
 
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, and releases it.
+   */
+  public Mono<Void> runSql(ConnectionPool pool, UUID traceId) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        conn -> runSql(conn, traceId), // Delegates to the existing logic
+        Connection::close
+    );
+  }
+
   @SuppressWarnings("JpaQueryApiInspection")
-  public Mono<Void> runSql(Connection connection, UUID traceId) { // 3. Accept the traceId
+  public Mono<Void> runSql(Connection connection, UUID traceId) {
 
     return Mono.defer(() -> executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated))
         .then(Mono.defer(() -> executeStream("2. Insert Initial Data", connection.createStatement(insertSql).execute(), Result::getRowsUpdated)))
@@ -142,12 +165,7 @@ public class TdsClient {
               .bind(29, "<root><node>Test XML</node></root>");
           return executeStream("4. Parameterized Insert (Inferred Types)", stmt4.execute(), Result::getRowsUpdated);
         }))
-//    test_bit, test_tinyint, test_smallint, test_int, test_bigint, test_decimal, test_numeric,
-//        test_smallmoney, test_money, test_real, test_float, test_date, test_time, test_datetime,
-//        test_datetime2, test_smalldatetime, test_dtoffset, test_char, test_varchar, test_varchar_max,
-//        test_text, test_nchar, test_nvarchar, test_nvarchar_max, test_binary, test_varbinary,
-//        test_varbinary_max, test_image, test_guid, test_xml
-//
+
         .then(Mono.defer(() -> {
           Statement stmt4 = connection.createStatement(bindSqlNames)
               .bind("test_bit", true)
@@ -221,32 +239,50 @@ public class TdsClient {
           return executeStream("10. createBatch() API", batch.execute(), res -> res.map(allDataTypesMapper));
         }))
 
-        // Tests 11 & 12: Errors are expected. The .onErrorResume() in executeStream guarantees the chain continues.
-        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class)))))
-        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)))
-        .then(Mono.defer(() -> executeStream("12. Invalid Table Test", connection.createStatement("SELECT * FROM dbo.TableThatDoesNotExist").execute(), res -> res.map((row, meta) -> row.get(0, String.class)))))
+        // Tests 11 & 12: Errors are strictly expected. If they don't error, the test fails.
+        .then(Mono.defer(() -> executeExpectedErrorStream("11a. Runtime Error Test (Invalid Cast)", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class)))))
+        .then(Mono.defer(() -> executeExpectedErrorStream("11b. Runtime Error Test (RAISERROR)", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)))
+        .then(Mono.defer(() -> executeExpectedErrorStream("12. Invalid Table Test", connection.createStatement("SELECT * FROM dbo.TableThatDoesNotExist").execute(), res -> res.map((row, meta) -> row.get(0, String.class)))))
 
-        // 4. INJECT THE CONTEXT HERE so it flows upstream to the entire query chain
         .contextWrite(Context.of("trace-id", traceId));
   }
 
-  // --- The Universal Async Helper using Reactor Flux ---
-
+  // --- Strict Async Helper ---
+  // If an error happens here, it bubbles up and FAILS the test suite.
   private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing: " + stepName + " ---");
 
     return Flux.from(resultPublisher)
         .flatMap(extractor)
         .doOnNext(item -> System.out.println("  -> " + item))
-        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
+        .doOnError(error -> System.err.println("[" + stepName + "] ❌ FAILED: " + error.getMessage()))
         .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
-        .then()
-        // CRITICAL: Swallow errors here so the `.then()` chain in runSql continues to the next test.
-        // This mimics the latch behavior where doOnError counted down and allowed the main thread to proceed.
-        .onErrorResume(e -> Mono.empty());
+        .then(); // Notice the removal of onErrorResume. This test will now properly blow up if it fails!
   }
 
-  // --- Mappers ---
+  // --- Expected Failure Helper ---
+  // Fails the test if the database query accidentally succeeds.
+  private <T> Mono<Void> executeExpectedErrorStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
+    System.out.println("\n--- Executing [EXPECTS ERROR]: " + stepName + " ---");
+
+    return Flux.from(resultPublisher)
+        .flatMap(extractor)
+        .doOnNext(item -> System.out.println("  -> " + item))
+        // If the stream completes normally, we throw an error because we EXPECTED a failure!
+        .then(Mono.<Void>error(new IllegalStateException("Step '" + stepName + "' was expected to throw an error, but it succeeded!")))
+        .onErrorResume(e -> {
+          // If the error is OUR IllegalStateException, propagate it upstream to fail the suite
+          if (e instanceof IllegalStateException) {
+            return Mono.error(e);
+          }
+          // Otherwise, it's the expected database error. Catch it, log it, and complete successfully.
+          System.out.println("  ✓ [Expected Database Error Caught]: " + e.getMessage());
+          System.out.println("--- Completed: " + stepName + " ---");
+          return Mono.empty();
+        });
+  }
+
+  // --- Mappers & SQL Definitions remain exactly the same below... ---
 
   BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
       row.get(0, Integer.class),          row.get(1, Boolean.class),

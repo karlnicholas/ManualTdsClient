@@ -1,5 +1,7 @@
 package com.example;
 
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
@@ -10,6 +12,7 @@ import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,15 +41,59 @@ public class TdsClientRandomAsync {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database for Async Load Testing...");
+    // Configure a simple pool for the standalone client execution
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(2)
+        .maxSize(10) // Small pool for this specific test
+        .maxIdleTime(Duration.ofMinutes(10))
+        .build();
 
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Connecting to pool for Async Load Testing...");
+
+    // Manage the Pool lifecycle and fail-fast on errors
     Mono.usingWhen(
-            Mono.from(connectionFactory.create()),
+            Mono.just(pool),
             this::runSql,
-            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nTests complete. Connection pool closed."))
         )
-        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
+        .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
+  }
+
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, safely releases the connection back to the pool,
+   * AND THEN audits the pool to see if the connection it just returned is poisoned.
+   */
+  public Mono<Void> runSql(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        this::runSql,
+        Connection::close
+    ).then(Mono.defer(() -> auditPool(pool)));
+  }
+
+  private Mono<Void> auditPool(ConnectionPool pool) {
+    System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
+    System.out.println("Requesting 10 concurrent connections to flush out any poisoned sockets...");
+
+    // Request exactly 10 connections to saturate this specific pool's maxSize
+    return Flux.range(1, 10)
+        .flatMap(i -> Mono.usingWhen(
+            Mono.from(pool.create()),
+            conn -> Flux.from(conn.createStatement("SELECT 1 AS ping").execute())
+                .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
+                // If the socket is hung/poisoned, this 2-second timeout will catch it
+                .timeout(Duration.ofSeconds(2))
+                .doOnNext(val -> System.out.println("  ✓ Connection #" + i + " Healthy"))
+                .doOnError(e -> System.err.println("  [!] Connection #" + i + " FAILED: " + e.getMessage()))
+                .then(),
+            Connection::close
+        ), 10) // Concurrency of 10
+        .then()
+        .doOnSuccess(v -> System.out.println("--- Pool Audit Complete ---\n"));
   }
 
   public Mono<Void> runSql(Connection connection) {
@@ -65,11 +112,8 @@ public class TdsClientRandomAsync {
     System.out.println("Found max id = " + maxId + ". Starting async load test...");
 
     // 4. Execute 6000 random queries asynchronously.
-    // We explicitly set concurrency to 256 (Reactor's default) to document the tuning knob.
-    // If your driver/server struggles, lower this number (e.g., to 32 or 64).
     return Flux.range(1, 6000)
         .flatMap(i -> {
-          // Use ThreadLocalRandom for thread-safe concurrent random generation
           ThreadLocalRandom random = ThreadLocalRandom.current();
 
           int numColumns = random.nextInt(allColumns.size()) + 1;
@@ -82,8 +126,6 @@ public class TdsClientRandomAsync {
           int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
           int numRows = random.nextInt(maxPossibleRows) + 1;
 
-          // CRITICAL OPTIMIZATION: Instead of building an IntStream of maxId,
-          // lazily generate a distinct stream of random integers.
           String idList = random.ints(1, maxId + 1)
               .distinct()
               .limit(numRows)
@@ -109,7 +151,7 @@ public class TdsClientRandomAsync {
           return Mono.defer(() ->
               executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
           );
-        }, 256)
+        }, 256) // The extreme concurrency over a single connection
         .then();
   }
 
@@ -157,9 +199,13 @@ public class TdsClientRandomAsync {
           }
           return sb.toString().trim();
         }))
-        // Consume the items reactively
         .doOnNext(item -> {})
-        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
+        // ---------------------------------------------------------
+        // THE TRIPWIRE: If the driver fails to parse the DONE token
+        // within 5 seconds, forcefully crash this specific query!
+        // ---------------------------------------------------------
+        .timeout(Duration.ofSeconds(5))
+        .doOnError(error -> System.err.println("[" + stepName + "] CRASHED: " + error.getMessage()))
         .then();
   }
 }

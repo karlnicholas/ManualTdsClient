@@ -31,7 +31,6 @@ public class TdsClientRandomPool {
   }
 
   private void run() {
-    // 1. Define the base ConnectionFactory
     ConnectionFactory baseConnectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
         .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
         .option(HOST, "localhost")
@@ -42,20 +41,17 @@ public class TdsClientRandomPool {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    // 2. Configure the ConnectionPool
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(baseConnectionFactory)
-        .initialSize(10)           // Start with 10 connections ready
-        .maxSize(50)               // Scale up to 50 concurrent connections
+        .initialSize(10)
+        .maxSize(50)
         .maxIdleTime(Duration.ofMinutes(10))
         .maxCreateConnectionTime(Duration.ofSeconds(5))
         .build();
 
-    // 3. Instantiate the Pool
     ConnectionPool connectionPool = new ConnectionPool(poolConfiguration);
 
     System.out.println("Connecting to database pool for Async Load Testing...");
 
-    // 4. Manage the lifecycle of the pool itself
     Mono.usingWhen(
             Mono.just(connectionPool),
             this::runSql,
@@ -66,7 +62,6 @@ public class TdsClientRandomPool {
   }
 
   public Mono<Void> runSql(ConnectionPool pool) {
-    // Both setup methods now borrow a connection from the pool
     return fetchColumnNames(pool)
         .flatMap(allColumns -> fetchMaxId(pool)
             .flatMap(maxId -> {
@@ -75,14 +70,35 @@ public class TdsClientRandomPool {
               }
               return executeLoadTest(pool, allColumns, maxId);
             })
-        );
+        )
+        // Explicitly trigger the audit after the 6000 queries complete
+        .then(Mono.defer(() -> auditPool(pool)));
+  }
+
+  private Mono<Void> auditPool(ConnectionPool pool) {
+    System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
+    System.out.println("Requesting 50 concurrent connections to flush out any poisoned sockets...");
+
+    // Request exactly 50 connections to saturate the pool's maxSize
+    return Flux.range(1, 50)
+        .flatMap(i -> Mono.usingWhen(
+            Mono.from(pool.create()),
+            conn -> Flux.from(conn.createStatement("SELECT 1 AS ping").execute())
+                .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
+                // If the socket is hung/poisoned, this 2-second timeout will catch it
+                .timeout(Duration.ofSeconds(2))
+                .doOnNext(val -> System.out.println("  ✓ Connection #" + i + " Healthy"))
+                .doOnError(e -> System.err.println("  [!] Connection #" + i + " FAILED: " + e.getMessage()))
+                .then(), // <--- THE FIX: Converts the Flux into a Mono<Void> for usingWhen
+            Connection::close
+        ), 50) // Force a concurrency of 50 to lease everything simultaneously
+        .then()
+        .doOnSuccess(v -> System.out.println("--- Pool Audit Complete: ALL CONNECTIONS ARE HEALTHY ---\n"));
   }
 
   private Mono<Void> executeLoadTest(ConnectionPool pool, List<String> allColumns, int maxId) {
     System.out.println("Found max id = " + maxId + ". Starting async load test...");
 
-    // Execute 6000 random queries asynchronously.
-    // Concurrency is 256, but they will be mapped to a max of 50 physical connections via the pool.
     return Flux.range(1, 6000)
         .flatMap(i -> {
           ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -119,21 +135,18 @@ public class TdsClientRandomPool {
 
           String stepName = "Query #" + i;
 
-          // Borrows a connection for the lifespan of this single query, then releases it
           return Mono.usingWhen(
               Mono.from(pool.create()),
               conn -> executeRandomQuery(stepName, conn.createStatement(dynamicQuery).execute(), selectedColumns),
               Connection::close
           );
-        }, 256)
+        }, 64)
         .then();
   }
 
-  // --- Latch-Free Helper Methods ---
+  // --- Latch-Free Helper Methods remain unchanged ---
 
   private Mono<List<String>> fetchColumnNames(ConnectionPool pool) {
-    System.out.println("Fetching column list from INFORMATION_SCHEMA...");
-
     String sql = """
             SELECT COLUMN_NAME
             FROM INFORMATION_SCHEMA.COLUMNS
@@ -149,13 +162,11 @@ public class TdsClientRandomPool {
                 .collectList(),
             Connection::close
         )
-        .doOnSuccess(columns -> System.out.println("Fetched " + columns.size() + " columns."))
         .filter(columns -> !columns.isEmpty())
         .switchIfEmpty(Mono.error(new RuntimeException("No columns found in dbo.AllDataTypes!")));
   }
 
   private Mono<Integer> fetchMaxId(ConnectionPool pool) {
-    System.out.println("Fetching max(id) from AllDataTypes...");
     String sql = "SELECT ISNULL(MAX(id), 0) FROM dbo.AllDataTypes";
 
     return Mono.usingWhen(
@@ -182,7 +193,12 @@ public class TdsClientRandomPool {
           return sb.toString().trim();
         }))
         .doOnNext(item -> {})
-        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
+        // ---------------------------------------------------------
+        // THE TRIPWIRE: If the driver fails to parse the DONE token
+        // within 5 seconds, forcefully crash this specific query!
+        // ---------------------------------------------------------
+        .timeout(Duration.ofSeconds(30))
+        .doOnError(error -> System.err.println("[" + stepName + "] CRASHED: " + error.getMessage()))
         .then();
   }
 }

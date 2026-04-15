@@ -1,5 +1,7 @@
 package com.example;
 
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Blob;
 import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
@@ -12,6 +14,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -42,11 +45,37 @@ public class TdsAllDataTypesTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    Mono.from(connectionFactory.create())
-        .flatMap(conn -> runSql(conn)
-            .then(Mono.from(conn.close())))
-        .doOnError(e -> System.err.println("Test Failed: " + e.getMessage()))
+    // Configure a simple pool for the standalone client execution
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(2)
+        .maxSize(10)
+        .maxIdleTime(Duration.ofMinutes(10))
+        .build();
+
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Connecting to database pool for Comprehensive Data Type Testing...");
+
+    // Manage the Pool lifecycle and fail-fast on errors
+    Mono.usingWhen(
+            Mono.just(pool),
+            this::runSql,
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nConnection Pool safely closed."))
+        )
+        .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
+  }
+
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, and safely releases the connection back to the pool.
+   */
+  public Mono<Void> runSql(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        this::runSql,
+        Connection::close
+    );
   }
 
   public Mono<Void> runSql(Connection connection) {
@@ -65,7 +94,6 @@ public class TdsAllDataTypesTest {
 //    String sql = "SET TEXTSIZE -1; SELECT " +
 //        "test_varchar_max, test_varbinary_max " +
 //        "FROM dbo.AllDataTypes WHERE id = 1;";
-
 
     System.out.println("Executing Comprehensive Data Type Test...");
 

@@ -1,5 +1,7 @@
 package com.example;
 
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Blob;
 import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
@@ -13,6 +15,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
@@ -37,16 +40,37 @@ public class TdsClientLobTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database...");
+    // Configure a simple pool for the standalone client execution
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(2)
+        .maxSize(10)
+        .maxIdleTime(Duration.ofMinutes(10))
+        .build();
 
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Connecting to pool for Comprehensive Binding Matrix & Way Testing...");
+
+    // Manage the Pool lifecycle and fail-fast on errors
     Mono.usingWhen(
-            Mono.from(connectionFactory.create()),
+            Mono.just(pool),
             this::runSql,
-            conn -> Mono.from(conn.close())
-                .doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nTests complete. Connection pool closed."))
         )
-        .doOnError(t -> System.err.println("Run Failed: " + t.getMessage()))
+        .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
+  }
+
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, and safely releases the connection back to the pool.
+   */
+  public Mono<Void> runSql(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        this::runSql,
+        Connection::close
+    );
   }
 
   public Mono<Void> runSql(Connection connection) {
@@ -54,8 +78,9 @@ public class TdsClientLobTest {
     String q1 = "SET TEXTSIZE -1; SELECT test_varchar_max FROM dbo.AllDataTypes where id=1;";
     String q2 = "SET TEXTSIZE -1; SELECT test_nvarchar_max FROM dbo.AllDataTypes where id=1;";
     String q3 = "SET TEXTSIZE -1; SELECT test_varbinary_max FROM dbo.AllDataTypes where id=1;";
-    String q4 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 500000000) AS LargeString;";
-    String q5 = "SET TEXTSIZE -1; SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), 104857600) AS VARBINARY(MAX)) AS LargeBinary;";
+    String q4 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 2000000000) AS LargeString;";
+    String q5 = "SET TEXTSIZE -1; SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), 2000000000) AS VARBINARY(MAX)) AS LargeBinary;";
+    String q6 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST(N'あ' AS NVARCHAR(MAX)), 1000000000) AS LargeNString;";
 
     // Extractors
     Function<Result, Publisher<Integer>> syncString = res -> res.map((row, meta) -> {
@@ -94,7 +119,11 @@ public class TdsClientLobTest {
         .then(Mono.defer(() -> executeStream("4B. 1 GB Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
 
         .then(Mono.defer(() -> executeStream("5A. 100 MB Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
-        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)));
+        .then(Mono.defer(() -> executeStream("5B. 100 MB Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
+
+    // Add to your execution chain
+        .then(Mono.defer(() -> executeStream("6A. 2 GB Generated NVARCHAR - Sync String", connection.createStatement(q6).execute(), syncString)))
+        .then(Mono.defer(() -> executeStream("6B. 2 GB Generated NVARCHAR - Async Clob", connection.createStatement(q6).execute(), asyncClob)));
   }
 
   // --- The Universal Async Helper ---

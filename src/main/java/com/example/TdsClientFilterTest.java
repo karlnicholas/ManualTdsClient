@@ -1,5 +1,7 @@
 package com.example;
 
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
@@ -10,6 +12,7 @@ import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,16 +41,37 @@ public class TdsClientFilterTest {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database for Transaction Testing...");
+    // Configure a simple pool for the standalone client execution
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(2)
+        .maxSize(10)
+        .maxIdleTime(Duration.ofMinutes(10))
+        .build();
 
-    // usingWhen ensures the connection is safely closed regardless of success or error
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Connecting to pool for Comprehensive Binding Matrix & Way Testing...");
+
+    // Manage the Pool lifecycle and fail-fast on errors
     Mono.usingWhen(
-            Mono.from(connectionFactory.create()),
+            Mono.just(pool),
             this::runSql,
-            conn -> Mono.from(conn.close()).doOnSuccess(v -> System.out.println("\nConnection safely closed."))
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nTests complete. Connection pool closed."))
         )
-        .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
+        .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
+  }
+
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, and safely releases the connection back to the pool.
+   */
+  public Mono<Void> runSql(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        this::runSql,
+        Connection::close
+    );
   }
 
   public Mono<Void> runSql(Connection connection) {

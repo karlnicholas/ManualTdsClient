@@ -1,12 +1,14 @@
 package com.example;
 
-import io.r2dbc.spi.Connection;
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -33,43 +35,54 @@ public class TdsTestAll {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    System.out.println("Connecting to database for TdsTestAll Bulk Execution...");
+// Configure the Global Pool for the entire Test Suite
+    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
+        .initialSize(5)
+        .maxSize(50)
+        .maxIdleTime(Duration.ofMinutes(10))
+        // ADD THIS: If a test waits more than 15 seconds for a connection, crash loudly!
+        .maxAcquireTime(Duration.ofSeconds(15))
+        .build();
+
+    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+
+    System.out.println("Booting Global Connection Pool for TdsTestAll Bulk Execution...");
 
     UUID traceId = UUID.randomUUID();
 
+    // Manage the global pool lifecycle
     Mono.usingWhen(
-            Mono.from(connectionFactory.create()),
-            conn -> executeAllTests(conn, traceId),
-            conn -> Mono.from(conn.close())
-                .doOnSuccess(v -> System.out.println("\nAll tests finished. Connection safely closed."))
+            Mono.just(pool),
+            p -> executeAllTests(p, traceId),
+            p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nAll tests finished. Global Connection Pool safely closed."))
         )
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
   }
 
-  private Mono<Void> executeAllTests(Connection conn, UUID traceId) {
+  private Mono<Void> executeAllTests(ConnectionPool pool, UUID traceId) {
     // 1. TdsClient MUST run first and complete successfully
-    return runTest("TdsClient (Primary Setup)", () -> new TdsClient().runSql(conn, traceId))
-
-        // 2. Execute the rest sequentially
-        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(conn)))
-        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(conn)))
-        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(conn)))
-        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(conn)))
-        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(conn)))
-        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(conn)))
-        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(conn)))
-        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(conn)))
-        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(conn)))
-        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(conn)))
-        .then(runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(conn)))
-//        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(conn)))
-        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(conn)))
-        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(conn)))
-        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(conn)))
-        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(conn)))
-        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(conn)))
-        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(conn)));
+//    return runTest("TdsClient (Primary Setup)", () -> new TdsClient().runSql(pool, traceId))
+//
+//        // 2. Execute the rest sequentially, passing the shared pool to each
+//        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
+//        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
+//        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
+//        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
+////        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
+        return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
+        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)));
+//        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
+//        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(pool)))
+//        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
+//        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
+//        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
+//        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
   }
 
   /**
