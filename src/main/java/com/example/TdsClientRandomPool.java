@@ -137,10 +137,10 @@ public class TdsClientRandomPool {
 
           return Mono.usingWhen(
               Mono.from(pool.create()),
-              conn -> executeRandomQuery(stepName, conn.createStatement(dynamicQuery).execute(), selectedColumns),
+              conn -> executeRandomQuery(stepName, dynamicQuery, conn.createStatement(dynamicQuery).execute(), selectedColumns),
               Connection::close
           );
-        }, 64)
+        }, 256)
         .then();
   }
 
@@ -178,7 +178,7 @@ public class TdsClientRandomPool {
     );
   }
 
-  private Mono<Void> executeRandomQuery(String stepName, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
+  private Mono<Void> executeRandomQuery(String stepName, String query, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
     return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
@@ -193,12 +193,12 @@ public class TdsClientRandomPool {
           return sb.toString().trim();
         }))
         .doOnNext(item -> {})
-        // ---------------------------------------------------------
-        // THE TRIPWIRE: If the driver fails to parse the DONE token
-        // within 5 seconds, forcefully crash this specific query!
-        // ---------------------------------------------------------
         .timeout(Duration.ofSeconds(30))
-        .doOnError(error -> System.err.println("[" + stepName + "] CRASHED: " + error.getMessage()))
+        .doOnError(error -> {
+          System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
+          // SPRING THE TRAP: Now 'query' is available to use as the map key
+          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
+        })
         .then();
   }
 }

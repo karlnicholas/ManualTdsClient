@@ -148,8 +148,9 @@ public class TdsClientRandomAsync {
 
           String stepName = "Query #" + i;
 
+          // FIX: Pass dynamicQuery as the second argument
           return Mono.defer(() ->
-              executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
+              executeRandomQuery(stepName, dynamicQuery, connection.createStatement(dynamicQuery).execute(), selectedColumns)
           );
         }, 256) // The extreme concurrency over a single connection
         .then();
@@ -185,7 +186,7 @@ public class TdsClientRandomAsync {
         .single();
   }
 
-  private Mono<Void> executeRandomQuery(String stepName, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
+  private Mono<Void> executeRandomQuery(String stepName, String query, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
     return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
@@ -200,12 +201,12 @@ public class TdsClientRandomAsync {
           return sb.toString().trim();
         }))
         .doOnNext(item -> {})
-        // ---------------------------------------------------------
-        // THE TRIPWIRE: If the driver fails to parse the DONE token
-        // within 5 seconds, forcefully crash this specific query!
-        // ---------------------------------------------------------
-        .timeout(Duration.ofSeconds(5))
-        .doOnError(error -> System.err.println("[" + stepName + "] CRASHED: " + error.getMessage()))
+        .timeout(Duration.ofSeconds(30))
+        .doOnError(error -> {
+          System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
+          // SPRING THE TRAP: Now 'query' is available to use as the map key
+          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
+        })
         .then();
   }
 }
