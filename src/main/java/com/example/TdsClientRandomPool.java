@@ -75,7 +75,8 @@ public class TdsClientRandomPool {
         )
         .then();
   }
-
+  // Define the limit (e.g., this test can only use 30 of the 50 connections)
+//  private final java.util.concurrent.Semaphore poolLimit = new java.util.concurrent.Semaphore(30);
   private Mono<Void> executeLoadTest(ConnectionPool pool, List<String> allColumns, int maxId) {
     System.out.println("Found max id = " + maxId + ". Starting async load test...");
 
@@ -109,11 +110,22 @@ public class TdsClientRandomPool {
                 ORDER BY id;
                 """.formatted(selectList, whereClause);
 
-          if (i % 1000 == 0) {
-            System.out.println("Dispatched Random Query #" + i);
+          if (i % 100 == 0) {
+            System.out.println("Dispatched Random Pool Query #" + i);
           }
 
           String stepName = "Query #" + i + ":" + dynamicQuery;
+
+//          return Mono.usingWhen(
+//              // Only proceed if a permit is available
+//              Mono.fromCallable(() -> {
+//                poolLimit.acquire();
+//                return i;
+//              }).then(Mono.from(pool.create())),
+//              conn -> executeRandomQuery(conn, stepName, dynamicQuery, conn.createStatement(dynamicQuery).execute(), selectedColumns),
+//          conn -> Mono.from(conn.close())
+//              .doFinally(s -> poolLimit.release()) // Release permit back to subset
+//            );
 
           return Mono.usingWhen(
               Mono.from(pool.create()),

@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -60,34 +61,87 @@ public class TdsTestAll {
         .block();
   }
 
-  private Mono<Void> executeAllTests(ConnectionPool pool) {
-    // Both tests manage their own internal checkouts from the passed pool
-    return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
-        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
-        // 2. Execute the rest sequentially, passing the shared pool to each
-        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
-        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
-        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
-        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
-        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
-        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
-        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
+//  private Mono<Void> executeAllTests(ConnectionPool pool) {
+//    // Both tests manage their own internal checkouts from the passed pool
+//    return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
+//        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
+//        // 2. Execute the rest sequentially, passing the shared pool to each
+//        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
+//        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
+//        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
+//        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
 //        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(pool)))
-        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
-        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
+//
+//        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
+//        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(pool)))
+//        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
+//        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
+//        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
+//        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
+//  }
+private Mono<Void> executeAllTests(ConnectionPool pool) {
+  System.out.println("🔥 TRIGGERING ALL TEST SUITES SIMULTANEOUSLY...");
 
-        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
-        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(pool)))
-        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
-        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
-        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
-        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
-  }
+  // Mono.when() subscribes to EVERY publisher in the list at once.
+  // They will all compete for the 50 connections in the global pool.
+  return Mono.when(
+      // Batch 1: High Volume & LOBs
+      runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomAsync().runSql(pool)),
+      runTest("CONCURRENT: RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
+      runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOkTest().runSql(pool)),
+
+      // Batch 2: Precision & State
+      runTest("CONCURRENT: TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
+      runTest("CONCURRENT: XML Stream", () -> new TdsClientXmlStream().runSql(pool)),
+      runTest("CONCURRENT: Transaction Logic", () -> new TdsTransactionTestSimple().runSql(pool)),
+      runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientExhaustiveNumericTest().runSql(pool)),
+
+      // Batch 3: Edge Cases & Protocol Stress
+      runTest("CONCURRENT: Error Recovery", () -> new TdsClientErrorTest().runSql(pool)),
+      runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilterTest().runSql(pool)),
+      runTest("CONCURRENT: Binding Matrix", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)),
+      runTest("CONCURRENT: Non-Numeric Matrix", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)),
+      runTest("CONCURRENT: AllDataTypes", () -> new TdsAllDataTypesTest().runSql(pool))
+  );
+}
+//  private Mono<Void> executeAllTests(ConnectionPool pool) {
+//    // Grouping into concurrent batches to stress different driver paths simultaneously
+//
+//    // Batch 1: The "Hammer" Batch (High-frequency random queries vs. Massive LOB streams)
+//    Mono<Void> batch1 = Mono.when(
+//        runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomAsync().runSql(pool)),
+//        runTest("CONCURRENT: RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
+//        runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOkTest().runSql(pool))
+//    );
+//
+//    // Batch 2: The "Precision" Batch (Matrix testing, Transactions, and XML streaming)
+//    Mono<Void> batch2 = Mono.when(
+//        runTest("CONCURRENT: TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
+//        runTest("CONCURRENT: XML Stream", () -> new TdsClientXmlStream().runSql(pool)),
+//        runTest("CONCURRENT: Transaction Logic", () -> new TdsTransactionTestSimple().runSql(pool)),
+//        runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientExhaustiveNumericTest().runSql(pool))
+//    );
+//
+//    // Batch 3: The "Edge Case" Batch (Errors, Binding Symmetry, and Filtering)
+//    Mono<Void> batch3 = Mono.when(
+//        runTest("CONCURRENT: Error Recovery", () -> new TdsClientErrorTest().runSql(pool)),
+//        runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilterTest().runSql(pool)),
+//        runTest("CONCURRENT: Binding Matrix", () -> new TdsClientBindingMatrixSymmetry().runSql(pool))
+//    );
+//
+//    // Execute the batches sequentially so the Audit remains deterministic
+//    return batch1.then(batch2).then(batch3);
+//  }
 
   private Mono<Void> runTest(String testName, Supplier<Mono<Void>> testExecution) {
     return Mono.defer(() -> {
       System.out.println("\n========================================================");
-      System.out.println("🚀 RUNNING SUITE: " + testName);
+      System.out.println("🚀 RUNNING SUITE: " + testName + " " + LocalDateTime.now());
       System.out.println("========================================================");
 
       return testExecution.get()

@@ -118,8 +118,8 @@ public class TdsClientRandomAsync {
                 ORDER BY id;
                 """.formatted(selectList, whereClause);
 
-          if (i % 1000 == 0) {
-            System.out.println("Dispatched Random Query #" + i);
+          if (i % 100 == 0) {
+            System.out.println("Dispatched Random Async Query #" + i);
           }
 
           String stepName = "Query #" + i;
