@@ -62,40 +62,16 @@ public class TdsClientRandomAsync {
         .block();
   }
 
-  /**
-   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
-   * runs the tests, safely releases the connection back to the pool,
-   * AND THEN audits the pool to see if the connection it just returned is poisoned.
-   */
+  // ADD THIS BACK IN: This is the entry point for TdsTestAll
   public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),
-        this::runSql,
-        Connection::close
-    ).then(Mono.defer(() -> auditPool(pool)));
+        this::runSql,       // Run the 6000 queries on the single borrowed connection
+        Connection::close   // Safely return it so the audit can grab it next
+    );
   }
 
-  private Mono<Void> auditPool(ConnectionPool pool) {
-    System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
-    System.out.println("Requesting 10 concurrent connections to flush out any poisoned sockets...");
-
-    // Request exactly 10 connections to saturate this specific pool's maxSize
-    return Flux.range(1, 10)
-        .flatMap(i -> Mono.usingWhen(
-            Mono.from(pool.create()),
-            conn -> Flux.from(conn.createStatement("SELECT 1 AS ping").execute())
-                .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-                // If the socket is hung/poisoned, this 2-second timeout will catch it
-                .timeout(Duration.ofSeconds(2))
-                .doOnNext(val -> System.out.println("  ✓ Connection #" + i + " Healthy"))
-                .doOnError(e -> System.err.println("  [!] Connection #" + i + " FAILED: " + e.getMessage()))
-                .then(),
-            Connection::close
-        ), 10) // Concurrency of 10
-        .then()
-        .doOnSuccess(v -> System.out.println("--- Pool Audit Complete ---\n"));
-  }
-
+  // Keep this exactly as it is:
   public Mono<Void> runSql(Connection connection) {
     return fetchColumnNames(connection)
         .flatMap(allColumns -> fetchMaxId(connection)
@@ -205,7 +181,7 @@ public class TdsClientRandomAsync {
         .doOnError(error -> {
           System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
           // SPRING THE TRAP: Now 'query' is available to use as the map key
-          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
+//          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
         })
         .then();
   }

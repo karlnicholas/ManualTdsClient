@@ -9,6 +9,8 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
+import org.tdslib.javatdslib.impl.TdsConnection;
+import org.tdslib.javatdslib.transport.TdsTransport;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -71,29 +73,7 @@ public class TdsClientRandomPool {
               return executeLoadTest(pool, allColumns, maxId);
             })
         )
-        // Explicitly trigger the audit after the 6000 queries complete
-        .then(Mono.defer(() -> auditPool(pool)));
-  }
-
-  private Mono<Void> auditPool(ConnectionPool pool) {
-    System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
-    System.out.println("Requesting 50 concurrent connections to flush out any poisoned sockets...");
-
-    // Request exactly 50 connections to saturate the pool's maxSize
-    return Flux.range(1, 50)
-        .flatMap(i -> Mono.usingWhen(
-            Mono.from(pool.create()),
-            conn -> Flux.from(conn.createStatement("SELECT 1 AS ping").execute())
-                .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-                // If the socket is hung/poisoned, this 2-second timeout will catch it
-                .timeout(Duration.ofSeconds(2))
-                .doOnNext(val -> System.out.println("  ✓ Connection #" + i + " Healthy"))
-                .doOnError(e -> System.err.println("  [!] Connection #" + i + " FAILED: " + e.getMessage()))
-                .then(), // <--- THE FIX: Converts the Flux into a Mono<Void> for usingWhen
-            Connection::close
-        ), 50) // Force a concurrency of 50 to lease everything simultaneously
-        .then()
-        .doOnSuccess(v -> System.out.println("--- Pool Audit Complete: ALL CONNECTIONS ARE HEALTHY ---\n"));
+        .then();
   }
 
   private Mono<Void> executeLoadTest(ConnectionPool pool, List<String> allColumns, int maxId) {
@@ -133,11 +113,11 @@ public class TdsClientRandomPool {
             System.out.println("Dispatched Random Query #" + i);
           }
 
-          String stepName = "Query #" + i;
+          String stepName = "Query #" + i + ":" + dynamicQuery;
 
           return Mono.usingWhen(
               Mono.from(pool.create()),
-              conn -> executeRandomQuery(stepName, dynamicQuery, conn.createStatement(dynamicQuery).execute(), selectedColumns),
+              conn -> executeRandomQuery(conn, stepName, dynamicQuery, conn.createStatement(dynamicQuery).execute(), selectedColumns),
               Connection::close
           );
         }, 256)
@@ -178,7 +158,7 @@ public class TdsClientRandomPool {
     );
   }
 
-  private Mono<Void> executeRandomQuery(String stepName, String query, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
+  private Mono<Void> executeRandomQuery(Connection connection, String stepName, String query, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
     return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
@@ -197,7 +177,19 @@ public class TdsClientRandomPool {
         .doOnError(error -> {
           System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
           // SPRING THE TRAP: Now 'query' is available to use as the map key
-          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
+          // 1. Check if the connection is a wrapper (e.g., from a pool)
+          TdsConnection nativeConnection;
+          if (connection instanceof io.r2dbc.spi.Wrapped<?> wrapped) {
+            // 2. Unwrap it and cast the raw inner object
+            nativeConnection = (TdsConnection) wrapped.unwrap();
+          } else {
+            // 3. Fallback if you are ever running without the pool
+            nativeConnection = (TdsConnection) connection;
+          }
+
+// Now you can grab the SPID for your error log
+
+          System.err.println("   => QUERY STATE: " + nativeConnection.getTransport().debuggingInformation);
         })
         .then();
   }

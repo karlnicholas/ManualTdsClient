@@ -2,7 +2,6 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
-import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
@@ -13,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
@@ -21,10 +21,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsTestAll {
+public class TdsTestAllSave {
 
   public static void main(String[] args) {
-    new TdsTestAll().run();
+    new TdsTestAllSave().run();
   }
 
   private void run() {
@@ -48,11 +48,14 @@ public class TdsTestAll {
 
     System.out.println("Booting Global Connection Pool for TdsTestAll Bulk Execution...");
 
+    UUID traceId = UUID.randomUUID();
+
     // Manage the global pool lifecycle
     Mono.usingWhen(
             Mono.just(pool),
-            p -> executeAllTests(p)
-                // AUDIT HAPPENS HERE: Inside the closure, after tests, before teardown.
+            p -> executeAllTests(p, traceId)
+                // MOVED: Explicitly trigger the audit INSIDE the usingWhen scope,
+                // so it runs BEFORE the pool is disposed.
                 .then(Mono.defer(() -> auditPool(p, 50))),
             p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nAll tests finished. Global Connection Pool safely closed."))
         )
@@ -60,30 +63,51 @@ public class TdsTestAll {
         .block();
   }
 
-  private Mono<Void> executeAllTests(ConnectionPool pool) {
-    // Both tests manage their own internal checkouts from the passed pool
-    return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
-        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
-        // 2. Execute the rest sequentially, passing the shared pool to each
-        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
-        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
-        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
-        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
-        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
-        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
-        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
-//        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(pool)))
-        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
-        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
+  private Mono<Void> executeAllTests(ConnectionPool pool, UUID traceId) {
+    // 1. TdsClient MUST run first and complete successfully
+//    return runTest("TdsClient (Primary Setup)", () -> new TdsClient().runSql(pool, traceId))
+//
+//        // 2. Execute the rest sequentially, passing the shared pool to each
+//        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
+//        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
+//        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
+//        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
+//        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
+////        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
 
-        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
-        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(pool)))
-        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
-        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
-        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
-        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
+//    return Mono.usingWhen(
+//        Mono.from(pool.create()),
+//        con->{
+//          return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(con))
+//              .then(runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(con)));
+//        },
+//        Connection::close
+//    );
+
+    return runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool));
+
+//        return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
+//        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)));
+
+//        return runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool))
+//        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)));
+
+//        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
+//        .then(runTest("TdsClientTestOutParams", () -> new TdsClientTestOutParams().runSql(pool)))
+//        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
+//        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
+//        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
+//        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
   }
 
+  /**
+   * Helper method to inject clear console logging into the reactive pipeline
+   * exactly when the test starts and ends.
+   */
   private Mono<Void> runTest(String testName, Supplier<Mono<Void>> testExecution) {
     return Mono.defer(() -> {
       System.out.println("\n========================================================");
@@ -101,14 +125,15 @@ public class TdsTestAll {
 
     java.util.concurrent.atomic.AtomicLong grandTotalQueued = new java.util.concurrent.atomic.AtomicLong();
     java.util.concurrent.atomic.AtomicLong grandTotalComplete = new java.util.concurrent.atomic.AtomicLong();
-    java.util.concurrent.atomic.AtomicLong grandTotalError = new java.util.concurrent.atomic.AtomicLong();
-    java.util.concurrent.atomic.AtomicLong grandTotalCancel = new java.util.concurrent.atomic.AtomicLong();
     List<String> finalStates = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
 
+    // 1. CHECK OUT all 50 connections concurrently AND HOLD THEM HOSTAGE.
+    // This physically prevents the pool from handing the same connection out twice.
     return Flux.range(1, poolSize)
         .flatMap(i -> Mono.from(pool.create()))
-        .collectList()
+        .collectList() // Wait until we have all 50 physical connections in our hands
         .flatMap(connections -> {
+          // 2. Now run the ping test on our 50 unique connections
           return Flux.fromIterable(connections)
               .flatMap(conn -> {
                 TdsConnection nativeConn;
@@ -126,22 +151,19 @@ public class TdsTestAll {
                     .doOnSuccess(v -> {
                       long queued = nativeConn.getTransport().debuggingInformation.queuedCount.get();
                       long complete = nativeConn.getTransport().debuggingInformation.completeCallback.get();
-                      long error = nativeConn.getTransport().debuggingInformation.errorCallback.get();
-                      long cancel = nativeConn.getTransport().debuggingInformation.cancelCallback.get();
 
                       grandTotalQueued.addAndGet(queued);
                       grandTotalComplete.addAndGet(complete);
-                      grandTotalError.addAndGet(error);
-                      grandTotalCancel.addAndGet(cancel);
 
                       finalStates.add(
                           "SPID: " + nativeConn.getTransport().getContext().getSpid() +
                               nativeConn.getTransport().debuggingInformation.toString()
                       );
                     })
-                    .thenReturn(conn);
+                    .thenReturn(conn); // Pass connection down the chain
               })
-              .then()
+              .then() // Wait for all 50 pings to finish
+              // 3. Safely return all 50 connections back to the pool at once
               .then(Flux.fromIterable(connections)
                   .flatMap(conn -> Mono.from(conn.close()))
                   .then());
@@ -152,33 +174,25 @@ public class TdsTestAll {
 
           long totalQ = grandTotalQueued.get();
           long totalC = grandTotalComplete.get();
-          long totalE = grandTotalError.get();
-          long totalX = grandTotalCancel.get();
           long activePings = finalStates.size();
-
-          long accountedFor = totalC + totalE + totalX + activePings;
 
           System.out.println("\n========================================================");
           System.out.println("📊 FINAL AUDIT SUMMARY");
           System.out.println("========================================================");
           System.out.println("  Connections Audited:   " + activePings + " / " + poolSize);
           System.out.println("  GRAND TOTAL QUERIES:   " + totalQ);
-          System.out.println("  --------------------------------------------------");
           System.out.println("  Driver Completed:      " + totalC);
-          System.out.println("  Driver Errored:        " + totalE);
-          System.out.println("  Driver Cancelled:      " + totalX);
           System.out.println("  Active Audit Pings:    " + activePings);
           System.out.println("  --------------------------------------------------");
-          System.out.println("  MATH CHECK:            (" + totalC + " + " + totalE + " + " + totalX + " + " + activePings + ") == " + totalQ);
+          System.out.println("  MATH CHECK:            (" + totalC + " + " + activePings + ") == " + totalQ);
 
-          if (totalQ == accountedFor) {
+          if (totalQ == (totalC + activePings)) {
             System.out.println("  STATUS:                ✅ PERFECT MATCH (Zero Leaks)");
           } else {
             System.out.println("  STATUS:                ❌ MISMATCH (Leak Detected)");
-            System.out.println("  DIFFERENCE:            " + (totalQ - accountedFor) + " queries lost/stuck.");
+            System.out.println("  DIFFERENCE:            " + (totalQ - (totalC + activePings)) + " queries lost/stuck.");
           }
           System.out.println("========================================================\n");
-
         });
   }
 }
