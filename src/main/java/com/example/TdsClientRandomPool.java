@@ -110,7 +110,7 @@ public class TdsClientRandomPool {
                 ORDER BY id;
                 """.formatted(selectList, whereClause);
 
-          if (i % 100 == 0) {
+          if (i % 1000 == 0) {
             System.out.println("Dispatched Random Pool Query #" + i);
           }
 
