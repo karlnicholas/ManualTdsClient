@@ -23,6 +23,7 @@
 <!--        <appender-ref ref="FILE" />-->
     </root>
 
-    <logger name="org.tdslib.javatdslib.transport.TdsTransport" level="TRACE" />
+<!--    <logger name="org.tdslib.javatdslib.transport.TdsTransport" level="TRACE" />-->
+<!--    <logger name="org.tdslib.javatdslib" level="TRACE" />-->
 
 </configuration>
