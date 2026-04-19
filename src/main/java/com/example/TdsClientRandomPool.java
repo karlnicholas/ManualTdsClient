@@ -132,7 +132,7 @@ public class TdsClientRandomPool {
               conn -> executeRandomQuery(conn, stepName, dynamicQuery, conn.createStatement(dynamicQuery).execute(), selectedColumns),
               Connection::close
           );
-        }, 256)
+        }, 20)
         .then();
   }
 
