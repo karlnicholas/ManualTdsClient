@@ -57,9 +57,9 @@ public class TdsClientBatchChaosTest {
     return Mono.usingWhen(
         Mono.from(pool.create()),
         connection -> setupTable(connection)
-//            .then(test1_SimpleBatch(connection))
-//            .then(test2_StressBatchSingleConn(connection))
-//            .then(test3_StressBatchConcurrent(pool)) // Passes the pool for concurrent execution
+            .then(test1_SimpleBatch(connection))
+            .then(test2_StressBatchSingleConn(connection))
+            .then(test3_StressBatchConcurrent(pool)) // Passes the pool for concurrent execution
             .then(test4_TheTrailingTokenTrap(connection)) // The 2000-batch trap
             .then(test5_TheVictim(connection)),           // The query that steps in it
         Connection::close
