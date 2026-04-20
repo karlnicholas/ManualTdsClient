@@ -4,6 +4,7 @@ import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.*;
 import org.tdslib.javatdslib.api.TdsLibOptions;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -100,7 +101,7 @@ public class TdsClientBindingMatrixSymmetry {
         .bind(1, 2147483647)                 // int -> Integer
         .bind(2, "Index Based Binding");     // varchar -> String
 
-    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+    return Flux.from(stmt.execute()).flatMap(Result::getRowsUpdated).then();
   }
 
   /**
@@ -116,7 +117,7 @@ public class TdsClientBindingMatrixSymmetry {
         .bind(1, Parameters.in(R2dbcType.DECIMAL, new BigDecimal("123.4567")))
         .bind(2, Parameters.in(R2dbcType.TIMESTAMP, LocalDateTime.now()));
 
-    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+    return Flux.from(stmt.execute()).flatMap(Result::getRowsUpdated).then();
   }
 
   /**
@@ -133,7 +134,7 @@ public class TdsClientBindingMatrixSymmetry {
         .bind("myInt", (short) 32767)         // int -> Short
         .bind("myDec", new BigInteger("999")); // decimal -> BigInteger
 
-    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+    return Flux.from(stmt.execute()).flatMap(Result::getRowsUpdated).then();
   }
 
   /**
@@ -149,6 +150,6 @@ public class TdsClientBindingMatrixSymmetry {
     stmt.bind("@atOffset", OffsetDateTime.now()) // datetimeoffset -> OffsetDateTime
         .bind("@atStr", "Named With At Binding");
 
-    return Mono.from(stmt.execute()).flatMapMany(Result::getRowsUpdated).then();
+    return Flux.from(stmt.execute()).flatMap(Result::getRowsUpdated).then();
   }
 }

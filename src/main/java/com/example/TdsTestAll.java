@@ -210,7 +210,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
           long totalX = grandTotalCancel.get();
           long activePings = finalStates.size();
 
-          long accountedFor = totalC + totalE + totalX + activePings;
+          long accountedFor = totalC + totalE + totalX;
 
           System.out.println("\n========================================================");
           System.out.println("📊 FINAL AUDIT SUMMARY");
