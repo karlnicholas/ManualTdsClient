@@ -72,7 +72,6 @@ public class TdsClientLobBinding {
   private Mono<Void> executeTestSequence(Connection connection) {
     String createTableSql = "DROP TABLE IF EXISTS dbo.LobTest; CREATE TABLE dbo.LobTest (id INT, massive_data VARCHAR(MAX));";
     String insertSql = "INSERT INTO dbo.LobTest (id, massive_data) VALUES (@id, @data)";
-    String selectSql = "SELECT id, massive_data FROM dbo.LobTest WHERE id = @id";
 
     // Create a reactive Clob. R2DBC 1.0.0 uses Publishers for LOBs.
     Clob reactiveClob = Clob.from(Mono.just("This represents a massive, multi-gigabyte stream of text"));
@@ -80,42 +79,31 @@ public class TdsClientLobBinding {
     return Mono.defer(() -> executeStream("1. Setup LOB Table", connection.createStatement(createTableSql).execute(), Result::getRowsUpdated))
 
         .then(Mono.defer(() -> {
-          System.out.println("\n--- Executing [EXPECTS ERROR]: 2. Attempt R2DBC 1.0.0 Clob Bind ---");
-          try {
-            Statement stmt = connection.createStatement(insertSql)
-                .bind("@id", 1)
-                .bind("@data", reactiveClob); // Attempt to bind the unsupported LOB
+          // --- THE NEW CAPABILITY ---
+          // This will now successfully stream via ClobStreamingEncoder
+          Statement stmt = connection.createStatement(insertSql)
+              .bind("@id", 1)
+              .bind("@data", reactiveClob);
 
-            // If bind magically succeeds, we still expect execute to fail
-            return Flux.from(stmt.execute())
-                .flatMap(Result::getRowsUpdated)
-                .then(Mono.<Void>error(new IllegalStateException("Step 2 succeeded when it should have failed!")));
-
-          } catch (IllegalArgumentException e) {
-            // Catch the synchronous fail-fast exception
-            System.out.println("  ✓ [Graceful Rejection Caught at Bind]: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-            System.out.println("--- Completed: 2. Attempt R2DBC 1.0.0 Clob Bind ---");
-            return Mono.empty();
-          }
+          return executeStream("2. Execute R2DBC 1.0.0 Clob Bind (Streaming)", stmt.execute(), Result::getRowsUpdated);
         }))
 
         .then(Mono.defer(() -> {
-          // CRITICAL TEST: The connection must still be healthy.
-          // We immediately try to insert a standard string payload using the exact same statement shape.
+          // Verify standard string bindings still work flawlessly
           Statement stmt = connection.createStatement(insertSql)
               .bind("@id", 2)
               .bind("@data", "This is a standard, non-LOB string payload");
 
-          return executeStream("3. Attempt Standard String Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
+          return executeStream("3. Execute Standard String Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
         }))
 
         .then(Mono.defer(() -> {
-          // Read it back to guarantee data integrity wasn't compromised by the previous failure
-          Statement stmt = connection.createStatement(selectSql)
-              .bind("@id", 2);
+          // Read back BOTH rows to guarantee data integrity of the streaming encoder
+          String selectSql = "SELECT id, massive_data FROM dbo.LobTest ORDER BY id";
+          Statement stmt = connection.createStatement(selectSql);
 
           return executeStream("4. Validate Inserted Data", stmt.execute(),
-              res -> res.map((row, meta) -> row.get("massive_data", String.class)));
+              res -> res.map((row, meta) -> "Row " + row.get("id", Integer.class) + ": " + row.get("massive_data", String.class)));
         }));
   }
 
