@@ -2,6 +2,7 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
+import io.r2dbc.spi.Blob;
 import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
@@ -14,7 +15,9 @@ import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
@@ -60,8 +63,6 @@ public class TdsClientLobBinding {
   }
 
   public Mono<Void> runSql(ConnectionPool pool) {
-    // Borrow exactly one connection for the entire sequence to prove
-    // the driver recovers gracefully on the same physical socket.
     return Mono.usingWhen(
         Mono.from(pool.create()),
         this::executeTestSequence,
@@ -70,44 +71,75 @@ public class TdsClientLobBinding {
   }
 
   private Mono<Void> executeTestSequence(Connection connection) {
-    String createTableSql = "DROP TABLE IF EXISTS dbo.LobTest; CREATE TABLE dbo.LobTest (id INT, massive_data VARCHAR(MAX));";
-    String insertSql = "INSERT INTO dbo.LobTest (id, massive_data) VALUES (@id, @data)";
+    // 1. Expanded schema to test both NVARCHAR(MAX) and VARBINARY(MAX)
+// 1. Expanded schema to test both NVARCHAR(MAX) and VARBINARY(MAX)
+    String createTableSql = "DROP TABLE IF EXISTS dbo.LobTest; " +
+        "CREATE TABLE dbo.LobTest (" +
+        "  id INT, " +
+        "  massive_text VARCHAR(MAX) NULL, " +
+        "  massive_binary VARBINARY(MAX) NULL" +
+        ");";
 
-    // Create a reactive Clob. R2DBC 1.0.0 uses Publishers for LOBs.
+    String insertTextSql = "INSERT INTO dbo.LobTest (id, massive_text) VALUES (@id, @data)";
+    String insertBinarySql = "INSERT INTO dbo.LobTest (id, massive_binary) VALUES (@id, @data)";
+
+    // 2. Mock Data Generation
     Clob reactiveClob = Clob.from(Mono.just("This represents a massive, multi-gigabyte stream of text"));
+
+    byte[] mockBytes = new byte[1024 * 5]; // 5KB of mock binary data
+    Arrays.fill(mockBytes, (byte) 0xAA);
+    Blob reactiveBlob = Blob.from(Mono.just(ByteBuffer.wrap(mockBytes)));
 
     return Mono.defer(() -> executeStream("1. Setup LOB Table", connection.createStatement(createTableSql).execute(), Result::getRowsUpdated))
 
+        // --- CLOB TESTS ---
         .then(Mono.defer(() -> {
-          // --- THE NEW CAPABILITY ---
-          // This will now successfully stream via ClobStreamingEncoder
-          Statement stmt = connection.createStatement(insertSql)
+          Statement stmt = connection.createStatement(insertTextSql)
               .bind("@id", 1)
               .bind("@data", reactiveClob);
-
           return executeStream("2. Execute R2DBC 1.0.0 Clob Bind (Streaming)", stmt.execute(), Result::getRowsUpdated);
         }))
-
         .then(Mono.defer(() -> {
-          // Verify standard string bindings still work flawlessly
-          Statement stmt = connection.createStatement(insertSql)
+          Statement stmt = connection.createStatement(insertTextSql)
               .bind("@id", 2)
               .bind("@data", "This is a standard, non-LOB string payload");
-
           return executeStream("3. Execute Standard String Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
         }))
 
+        // --- BLOB TESTS ---
         .then(Mono.defer(() -> {
-          // Read back BOTH rows to guarantee data integrity of the streaming encoder
-          String selectSql = "SELECT id, massive_data FROM dbo.LobTest ORDER BY id";
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 3)
+              .bind("@data", reactiveBlob);
+          return executeStream("4. Execute R2DBC 1.0.0 Blob Bind (Streaming)", stmt.execute(), Result::getRowsUpdated);
+        }))
+        .then(Mono.defer(() -> {
+          byte[] standardBytes = new byte[]{0x01, 0x02, 0x03, 0x04};
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 4)
+              .bind("@data", ByteBuffer.wrap(standardBytes)); // Or byte[] if your scalar encoder supports it directly
+          return executeStream("5. Execute Standard Binary Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
+        }))
+
+        // --- VALIDATION ---
+        .then(Mono.defer(() -> {
+          String selectSql = "SET TEXTSIZE -1; SELECT id, massive_text, massive_binary FROM dbo.LobTest ORDER BY id";
           Statement stmt = connection.createStatement(selectSql);
 
-          return executeStream("4. Validate Inserted Data", stmt.execute(),
-              res -> res.map((row, meta) -> "Row " + row.get("id", Integer.class) + ": " + row.get("massive_data", String.class)));
+          return executeStream("6. Validate Inserted Data", stmt.execute(),
+              res -> res.map((row, meta) -> {
+                int id = row.get("id", Integer.class);
+                String text = row.get("massive_text", String.class);
+
+                // Assuming your row decoder maps varbinary to byte[] or ByteBuffer
+                byte[] bin = row.get("massive_binary", byte[].class);
+                String binInfo = (bin != null) ? "Binary Size: " + bin.length + " bytes" : "null";
+
+                return String.format("Row %d: Text=[%s] | Binary=[%s]", id, text, binInfo);
+              }));
         }));
   }
 
-  // --- Strict Async Helper ---
   private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing: " + stepName + " ---");
 
@@ -119,7 +151,6 @@ public class TdsClientLobBinding {
         .then();
   }
 
-  // --- Expected Failure Helper ---
   private <T> Mono<Void> executeExpectedErrorStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
     System.out.println("\n--- Executing [EXPECTS ERROR]: " + stepName + " ---");
 
@@ -129,9 +160,8 @@ public class TdsClientLobBinding {
         .then(Mono.<Void>error(new IllegalStateException("Step '" + stepName + "' was expected to throw an error, but it succeeded!")))
         .onErrorResume(e -> {
           if (e instanceof IllegalStateException) {
-            return Mono.error(e); // Propagate our manual failure
+            return Mono.error(e);
           }
-          // The custom lib correctly rejected it. Print the error and continue the chain.
           System.out.println("  ✓ [Graceful Rejection Caught]: " + e.getClass().getSimpleName() + " - " + e.getMessage());
           System.out.println("--- Completed: " + stepName + " ---");
           return Mono.empty();
