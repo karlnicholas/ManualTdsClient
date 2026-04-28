@@ -257,7 +257,7 @@ public class TdsClient {
         .doOnNext(item -> System.out.println("  -> " + item))
         .doOnError(error -> System.err.println("[" + stepName + "] ❌ FAILED: " + error.getMessage()))
         .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
-        .then(); // Notice the removal of onErrorResume. This test will now properly blow up if it fails!
+        .then();
   }
 
   // --- Expected Failure Helper ---
@@ -282,7 +282,7 @@ public class TdsClient {
         });
   }
 
-  // --- Mappers & SQL Definitions remain exactly the same below... ---
+  // --- Mappers & SQL Definitions ---
 
   BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
       row.get(0, Integer.class),          row.get(1, Boolean.class),
@@ -349,10 +349,11 @@ public class TdsClient {
       row.get("test_xml", String.class)
   );
 
-  BiFunction<OutParameters, OutParametersMetadata, List<Integer>> rvOutMapper = (out, meta) -> List.of(
-      out.get(0, Integer.class),
-      out.get(1, Integer.class),
-      out.get(2, Integer.class)
+  // Maps values out and actively queries OutParametersMetadata to print param names.
+  BiFunction<OutParameters, OutParametersMetadata, List<String>> rvOutMapper = (out, meta) -> List.of(
+      meta.getParameterMetadata(0).getName() + ": " + out.get(0, Long.class),
+      meta.getParameterMetadata("@sum").getName() + ": " + out.get(1, Long.class),
+      meta.getParameterMetadata(2).getName() + ": " + out.get(2, Long.class)
   );
 
   // --- SQL Definitions ---
