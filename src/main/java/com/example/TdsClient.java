@@ -7,6 +7,8 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
+import io.r2dbc.spi.ConnectionMetadata;
+import io.r2dbc.spi.IsolationLevel;
 import io.r2dbc.spi.OutParameters;
 import io.r2dbc.spi.OutParametersMetadata;
 import io.r2dbc.spi.Parameters;
@@ -93,7 +95,24 @@ public class TdsClient {
   @SuppressWarnings("JpaQueryApiInspection")
   public Mono<Void> runSql(Connection connection, UUID traceId) {
 
-    return Mono.defer(() -> executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated))
+    return Mono.defer(() -> {
+          System.out.println("\n--- Executing: 0a. Test Connection Metadata ---");
+          ConnectionMetadata meta = connection.getMetadata();
+          System.out.println("  -> Product: " + meta.getDatabaseProductName());
+          System.out.println("  -> Version: " + meta.getDatabaseVersion());
+          System.out.println("--- Completed: 0a. Test Connection Metadata ---");
+          return Mono.empty();
+        })
+        .then(Mono.defer(() -> {
+          System.out.println("\n--- Executing: 0b. Test Isolation Level API ---");
+          System.out.println("  -> Default Level: " + connection.getTransactionIsolationLevel().asSql());
+          return Mono.from(connection.setTransactionIsolationLevel(IsolationLevel.SERIALIZABLE))
+              .doOnSuccess(v -> System.out.println("  -> Changed Level to: " + connection.getTransactionIsolationLevel().asSql()))
+              .doOnSuccess(v -> System.out.println("--- Completed: 0b. Test Isolation Level API ---"))
+              .then();
+        }))
+
+        .then(Mono.defer(() -> executeStream("1. Create Table", connection.createStatement(createSql).execute(), Result::getRowsUpdated)))
         .then(Mono.defer(() -> executeStream("2. Insert Initial Data", connection.createStatement(insertSql).execute(), Result::getRowsUpdated)))
 
         .then(Mono.defer(() -> {
