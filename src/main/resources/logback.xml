@@ -20,10 +20,10 @@
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE" />
+<!--        <appender-ref ref="FILE" />-->
     </root>
 
 <!--    <logger name="org.tdslib.javatdslib.transport.TdsTransport" level="TRACE" />-->
-    <logger name="org.tdslib.javatdslib" level="TRACE" />
+<!--    <logger name="org.tdslib.javatdslib" level="TRACE" />-->
 
 </configuration>
