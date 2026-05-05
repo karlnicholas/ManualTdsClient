@@ -72,7 +72,6 @@ public class TdsClientLobBinding {
 
   private Mono<Void> executeTestSequence(Connection connection) {
     // 1. Expanded schema to test both NVARCHAR(MAX) and VARBINARY(MAX)
-// 1. Expanded schema to test both NVARCHAR(MAX) and VARBINARY(MAX)
     String createTableSql = "DROP TABLE IF EXISTS dbo.LobTest; " +
         "CREATE TABLE dbo.LobTest (" +
         "  id INT, " +
@@ -97,7 +96,7 @@ public class TdsClientLobBinding {
           Statement stmt = connection.createStatement(insertTextSql)
               .bind("@id", 1)
               .bind("@data", reactiveClob);
-          return executeStream("2. Execute R2DBC 1.0.0 Clob Bind (Streaming)", stmt.execute(), Result::getRowsUpdated);
+          return executeStream("2. Execute R2DBC 1.0.0 Clob Bind (Single Chunk)", stmt.execute(), Result::getRowsUpdated);
         }))
         .then(Mono.defer(() -> {
           Statement stmt = connection.createStatement(insertTextSql)
@@ -111,14 +110,41 @@ public class TdsClientLobBinding {
           Statement stmt = connection.createStatement(insertBinarySql)
               .bind("@id", 3)
               .bind("@data", reactiveBlob);
-          return executeStream("4. Execute R2DBC 1.0.0 Blob Bind (Streaming)", stmt.execute(), Result::getRowsUpdated);
+          return executeStream("4. Execute R2DBC 1.0.0 Blob Bind (Single Chunk)", stmt.execute(), Result::getRowsUpdated);
         }))
+        .then(Mono.defer(() -> {
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 4)
+              .bind("@data", Blob.from(createSuccessfulStream(50)));
+          return executeStream("5. Execute Massive Blob Bind (Successful 50 Chunk Stream)", stmt.execute(), Result::getRowsUpdated);
+        }))
+
+        // --- CANCELLED LOB TESTS ---
+        .then(Mono.defer(() -> {
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 5)
+              .bind("@data", Blob.from(createCancelledStream(1)));
+          return executeExpectedErrorStream("6. Execute Cancelled Blob Bind (1 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+        }))
+        .then(Mono.defer(() -> {
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 6)
+              .bind("@data", Blob.from(createCancelledStream(2)));
+          return executeExpectedErrorStream("7. Execute Cancelled Blob Bind (2 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+        }))
+        .then(Mono.defer(() -> {
+          Statement stmt = connection.createStatement(insertBinarySql)
+              .bind("@id", 7)
+              .bind("@data", Blob.from(createCancelledStream(50)));
+          return executeExpectedErrorStream("8. Execute Cancelled Blob Bind (50 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+        }))
+
         .then(Mono.defer(() -> {
           byte[] standardBytes = new byte[]{0x01, 0x02, 0x03, 0x04};
           Statement stmt = connection.createStatement(insertBinarySql)
-              .bind("@id", 4)
-              .bind("@data", ByteBuffer.wrap(standardBytes)); // Or byte[] if your scalar encoder supports it directly
-          return executeStream("5. Execute Standard Binary Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
+              .bind("@id", 8)
+              .bind("@data", ByteBuffer.wrap(standardBytes));
+          return executeStream("9. Execute Standard Binary Bind (Non-LOB)", stmt.execute(), Result::getRowsUpdated);
         }))
 
         // --- VALIDATION ---
@@ -126,7 +152,7 @@ public class TdsClientLobBinding {
           String selectSql = "SET TEXTSIZE -1; SELECT id, massive_text, massive_binary FROM dbo.LobTest ORDER BY id";
           Statement stmt = connection.createStatement(selectSql);
 
-          return executeStream("6. Validate Inserted Data", stmt.execute(),
+          return executeStream("10. Validate Inserted Data", stmt.execute(),
               res -> res.map((row, meta) -> {
                 int id = row.get("id", Integer.class);
                 String text = row.get("massive_text", String.class);
@@ -138,6 +164,33 @@ public class TdsClientLobBinding {
                 return String.format("Row %d: Text=[%s] | Binary=[%s]", id, text, binInfo);
               }));
         }));
+  }
+
+  /**
+   * Helper method to generate a successful, massive reactive stream of multiple chunks.
+   */
+  private Publisher<ByteBuffer> createSuccessfulStream(int chunksToEmit) {
+    return Flux.range(0, chunksToEmit)
+        .map(i -> {
+          byte[] bytes = new byte[1024 * 8];
+          Arrays.fill(bytes, i.byteValue());
+          return ByteBuffer.wrap(bytes);
+        });
+  }
+
+  /**
+   * Helper method to generate a massive reactive stream that intentionally crashes
+   * after emitting a specific number of chunks.
+   */
+  private Publisher<ByteBuffer> createCancelledStream(int chunksToEmit) {
+    return Flux.range(0, 1000)
+        .map(i -> {
+          byte[] bytes = new byte[1024 * 8];
+          Arrays.fill(bytes, i.byteValue());
+          return ByteBuffer.wrap(bytes);
+        })
+        .take(chunksToEmit)
+        .concatWith(Mono.error(new RuntimeException("Intentional client LOB cancellation after " + chunksToEmit + " chunks")));
   }
 
   private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
