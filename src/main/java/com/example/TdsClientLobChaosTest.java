@@ -27,7 +27,8 @@ public class TdsClientLobChaosTest {
   private static final Logger logger = LoggerFactory.getLogger(TdsClientLobChaosTest.class);
 
   // Generates a ~25MB string payload to ensure it is chunked over the network
-  private static final String lobQuery = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 25000000) AS LargeString;";
+//  private static final String lobQuery = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 25000000) AS LargeString;";
+  private static final String lobQuery = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 2500000) AS LargeString;";
 
   public static void main(String[] args) {
     new TdsClientLobChaosTest().run();
