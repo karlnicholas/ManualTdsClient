@@ -1,0 +1,63 @@
+
+1. Chaos, Stress, and Randomization Testing
+
+These tests likely introduce unpredictable elements, high loads, or random inputs to ensure the client remains stable under duress.
+
+	TdsClientChaosTest
+	TdsClientBatchChaosTest
+	TdsClientLobChaosTest
+	TdsClientMacroChaosTest
+	TdsClientSqlBatchChaosTest
+	TdsClientSpStress
+
+2. LOB (Large Object) Handling
+
+Given the number of specific files, managing Large Objects (like BLOBs or CLOBs) is a dedicated category to ensure memory and stream handling works correctly.
+
+	TdsClientLobTest
+	TdsClientLobBinding
+	TdsClientBatchLobBinding
+	TdsClientLobOkTest
+	TdsClientLobBug
+
+3. Data Types and Binding Validation
+
+Tests dedicated to ensuring all SQL data types map, bind, and serialize/deserialize correctly between Java and the database.
+
+	TdsClientExhaustiveNumericTest
+	TdsClientExhaustiveNonNumericTest
+	TdsClientBindingMatrixSymmetry
+	TdsClientTypeMatrix
+	TdsClientXmlStream
+
+4. Error, Exception, and Edge-Case Handling
+
+Tests that intentionally trigger bad states, malformed packets, or exceptions to verify the client fails gracefully or recovers.
+
+	TdsClientErrorTest
+	TdsClientExceptions
+	TdsClientMisbehaviorTest
+	TdsClientMicroPoison
+	TdsClientEomParadoxTest
+
+5. Execution Mechanics (Batches, Selects, and Params)
+
+Tests focusing on specific SQL execution paths and standard query mechanics.
+
+	TdsClientTestOutParams
+	TdsClientTraceId
+	TdsClientFilterTest
+	TdsClientOrderTest
+	TdsClientOrderSyncTest
+	TdsClientOrderSyncLobTest
+	TdsTransactionTestSimple
+	TdsClientTestSelect
+	TdsClientSelectOne
+	TdsClient
+
+
+6. High Throughput
+
+	TdsClientRandom
+	TdsClientRandomAsync
+	TdsClientRandomPool

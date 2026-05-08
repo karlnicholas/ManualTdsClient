@@ -64,8 +64,8 @@ public class TdsTestAllSave {
   }
 
   private Mono<Void> executeAllTests(ConnectionPool pool, UUID traceId) {
-    // 1. TdsClient MUST run first and complete successfully
-//    return runTest("TdsClient (Primary Setup)", () -> new TdsClient().runSql(pool, traceId))
+    // 1. TdsClientEssential MUST run first and complete successfully
+//    return runTest("TdsClientEssential (Primary Setup)", () -> new TdsClientEssential().runSql(pool, traceId))
 //
 //        // 2. Execute the rest sequentially, passing the shared pool to each
 //        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
