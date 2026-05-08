@@ -77,7 +77,6 @@ public class TdsClientBatchMisbehaved {
           String setup = """
               DROP TABLE IF EXISTS dbo.Misbehaved;
               CREATE TABLE dbo.Misbehaved (id INT IDENTITY(1,1), dummy VARCHAR(50));
-              GO
               INSERT INTO dbo.Misbehaved (dummy) VALUES ('A'), ('B'), ('C'), ('D'), ('E'), ('F'), ('G'), ('H'), ('I'), ('J');
               """;
           return executeStream("1. Setup", connection.createStatement(setup).execute(), Result::getRowsUpdated);
