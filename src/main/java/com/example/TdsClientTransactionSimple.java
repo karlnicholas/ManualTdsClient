@@ -22,10 +22,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsTransactionTestSimple {
+public class TdsClientTransactionSimple {
 
   public static void main(String[] args) {
-    new TdsTransactionTestSimple().run();
+    new TdsClientTransactionSimple().run();
   }
 
   private void run() {

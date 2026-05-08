@@ -25,10 +25,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientEomParadoxTest {
+public class TdsClientEomParadox {
 
   public static void main(String[] args) {
-    new TdsClientEomParadoxTest().run();
+    new TdsClientEomParadox().run();
   }
 
   private void run() {

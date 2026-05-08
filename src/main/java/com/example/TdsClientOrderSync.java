@@ -6,26 +6,13 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.spi.OutParameters;
-import io.r2dbc.spi.OutParametersMetadata;
 import io.r2dbc.spi.Result;
-import io.r2dbc.spi.Row;
-import io.r2dbc.spi.RowMetadata;
 import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -33,9 +20,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientErrorTest {
+public class TdsClientOrderSync {
   public static void main(String[] args) throws Exception {
-    new TdsClientErrorTest().run();
+    new TdsClientOrderSync().run();
   }
 
   private void run() {
@@ -82,26 +69,25 @@ public class TdsClientErrorTest {
     );
   }
 
-  @SuppressWarnings("JpaQueryApiInspection")
-  public Mono<Void> runSql(Connection connection) {
-    return Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class))))
-        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)));
+  public Mono<Void>  runSql(Connection connection) {
+    // 1. Discover columns
+      // A. Random number of columns
+      String query = "SELECT id, test_char FROM dbo.AllDataTypes where id=1";
+
+
+      return executeQuery("Test", connection.createStatement(query).execute());
+
   }
-
-  // --- The Universal Async Helper using Reactor Flux ---
-
-  private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
-    System.out.println("\n--- Executing: " + stepName + " ---");
-
+  private Mono<Void> executeQuery(String stepName, Publisher<? extends Result> resultPublisher) {
     return Flux.from(resultPublisher)
-        .flatMap(extractor)
-        .doOnNext(item -> System.out.println("  -> " + item))
-        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
-        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
-        .then()
-        // CRITICAL: Swallow errors here so the `.then()` chain in runSql continues to the next test.
-        // This mimics the latch behavior where doOnError counted down and allowed the main thread to proceed.
-        .onErrorResume(e -> Mono.empty());
+        .flatMap(result -> result.map((row, meta) -> {
+          StringBuilder sb = new StringBuilder();
+          // Extract variables as requested
+          Object value1 = row.get(0, String.class);
+          Object value0 = row.get(1, String.class);
+          return sb.toString().trim();
+        }))
+        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
+        .then(); // Converts the Flux to a Mono<Void> signaling completion
   }
-
 }

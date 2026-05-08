@@ -31,9 +31,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientChaosTest {
+public class TdsClientChaos {
   public static void main(String[] args) throws Exception {
-    new TdsClientChaosTest().run();
+    new TdsClientChaos().run();
   }
 
   private void run() {

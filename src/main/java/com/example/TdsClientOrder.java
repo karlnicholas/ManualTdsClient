@@ -2,18 +2,17 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
+import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.spi.Result;
-import org.reactivestreams.Publisher;
+import io.r2dbc.spi.Row;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -21,9 +20,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientOrderSyncTest {
-  public static void main(String[] args) throws Exception {
-    new TdsClientOrderSyncTest().run();
+public class TdsClientOrder {
+
+  public static void main(String[] args) {
+    new TdsClientOrder().run();
   }
 
   private void run() {
@@ -70,25 +70,34 @@ public class TdsClientOrderSyncTest {
     );
   }
 
-  public Mono<Void>  runSql(Connection connection) {
-    // 1. Discover columns
-      // A. Random number of columns
-      String query = "SELECT id, test_char FROM dbo.AllDataTypes where id=1";
+  private Mono<Void> runSql(Connection connection) {
+    // Query rearranged: Standard types first, LOB (_max) types last
+    String sql2 = "SET TEXTSIZE -1; SELECT " +
+        "test_varchar_max, test_nvarchar_max " +
+        "FROM dbo.AllDataTypes WHERE id = 1;";
 
+    System.out.println("Executing Comprehensive Data Type Test...");
 
-      return executeQuery("Test", connection.createStatement(query).execute());
-
-  }
-  private Mono<Void> executeQuery(String stepName, Publisher<? extends Result> resultPublisher) {
-    return Flux.from(resultPublisher)
+    return Flux.from(connection.createStatement(sql2).execute())
         .flatMap(result -> result.map((row, meta) -> {
-          StringBuilder sb = new StringBuilder();
-          // Extract variables as requested
-          Object value1 = row.get(0, String.class);
-          Object value0 = row.get(1, String.class);
-          return sb.toString().trim();
+          System.out.println("--- Mapping All Standard Columns ---");
+
+          return streamClob(row, "test_varchar_max").doOnNext(length -> System.out.println("  -> test_nvarchar_max length: " + length))
+              .then(streamClob(row, "test_nvarchar_max").doOnNext(length -> System.out.println("  -> test_varchar_max length: " + length)));
         }))
-        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
-        .then(); // Converts the Flux to a Mono<Void> signaling completion
+        .flatMap(f -> f)
+        .then();
   }
+
+  // Helper to stream Clob and return length
+  private Mono<Long> streamClob(Row row, String name) {
+    Clob clob = row.get(name, Clob.class);
+    if (clob == null) return Mono.just(0L);
+    return Flux.from(clob.stream())
+        .reduce(0L, (acc, chunk) -> {
+          System.out.println("Acc, chunk.length() = " + acc + " : " + chunk.length());
+          return acc + chunk.length();
+        });
+  }
+
 }

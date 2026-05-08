@@ -31,9 +31,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientFilterTest {
+public class TdsClientFilter {
   public static void main(String[] args) {
-    new TdsClientFilterTest().run();
+    new TdsClientFilter().run();
   }
 
   private void run() {

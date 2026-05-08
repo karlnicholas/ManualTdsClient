@@ -2,29 +2,28 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
-import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.spi.Row;
+import io.r2dbc.spi.Result;
+import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
-import static io.r2dbc.spi.ConnectionFactoryOptions.DRIVER;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientOrderTest {
-
-  public static void main(String[] args) {
-    new TdsClientOrderTest().run();
+public class TdsClientError {
+  public static void main(String[] args) throws Exception {
+    new TdsClientError().run();
   }
 
   private void run() {
@@ -71,34 +70,26 @@ public class TdsClientOrderTest {
     );
   }
 
-  private Mono<Void> runSql(Connection connection) {
-    // Query rearranged: Standard types first, LOB (_max) types last
-    String sql2 = "SET TEXTSIZE -1; SELECT " +
-        "test_varchar_max, test_nvarchar_max " +
-        "FROM dbo.AllDataTypes WHERE id = 1;";
-
-    System.out.println("Executing Comprehensive Data Type Test...");
-
-    return Flux.from(connection.createStatement(sql2).execute())
-        .flatMap(result -> result.map((row, meta) -> {
-          System.out.println("--- Mapping All Standard Columns ---");
-
-          return streamClob(row, "test_varchar_max").doOnNext(length -> System.out.println("  -> test_nvarchar_max length: " + length))
-              .then(streamClob(row, "test_nvarchar_max").doOnNext(length -> System.out.println("  -> test_varchar_max length: " + length)));
-        }))
-        .flatMap(f -> f)
-        .then();
+  @SuppressWarnings("JpaQueryApiInspection")
+  public Mono<Void> runSql(Connection connection) {
+    return Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("SELECT CAST('NotAnInteger' AS INT)").execute(), res -> res.map((row, meta) -> row.get(0, Integer.class))))
+        .then(Mono.defer(() -> executeStream("11. Runtime Error Test", connection.createStatement("RAISERROR('This is a fatal runtime exception', 16, 1)").execute(), Result::getRowsUpdated)));
   }
 
-  // Helper to stream Clob and return length
-  private Mono<Long> streamClob(Row row, String name) {
-    Clob clob = row.get(name, Clob.class);
-    if (clob == null) return Mono.just(0L);
-    return Flux.from(clob.stream())
-        .reduce(0L, (acc, chunk) -> {
-          System.out.println("Acc, chunk.length() = " + acc + " : " + chunk.length());
-          return acc + chunk.length();
-        });
+  // --- The Universal Async Helper using Reactor Flux ---
+
+  private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
+    System.out.println("\n--- Executing: " + stepName + " ---");
+
+    return Flux.from(resultPublisher)
+        .flatMap(extractor)
+        .doOnNext(item -> System.out.println("  -> " + item))
+        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
+        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
+        .then()
+        // CRITICAL: Swallow errors here so the `.then()` chain in runSql continues to the next test.
+        // This mimics the latch behavior where doOnError counted down and allowed the main thread to proceed.
+        .onErrorResume(e -> Mono.empty());
   }
 
 }

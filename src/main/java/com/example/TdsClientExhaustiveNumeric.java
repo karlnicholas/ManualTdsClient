@@ -14,10 +14,10 @@ import java.util.Objects;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientExhaustiveNumericTest {
+public class TdsClientExhaustiveNumeric {
 
   public static void main(String[] args) {
-    new TdsClientExhaustiveNumericTest().run();
+    new TdsClientExhaustiveNumeric().run();
   }
 
   private void run() {

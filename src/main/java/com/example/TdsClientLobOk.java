@@ -24,9 +24,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientLobOkTest {
+public class TdsClientLobOk {
   public static void main(String[] args) {
-    new TdsClientLobOkTest().run();
+    new TdsClientLobOk().run();
   }
 
   private void run() {

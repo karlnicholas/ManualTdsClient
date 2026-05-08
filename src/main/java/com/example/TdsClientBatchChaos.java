@@ -13,11 +13,11 @@ import java.time.Duration;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientBatchChaosTest {
-  private static final Logger logger = LoggerFactory.getLogger(TdsClientBatchChaosTest.class);
+public class TdsClientBatchChaos {
+  private static final Logger logger = LoggerFactory.getLogger(TdsClientBatchChaos.class);
 
   public static void main(String[] args) {
-    new TdsClientBatchChaosTest().run();
+    new TdsClientBatchChaos().run();
   }
 
   private void run() {

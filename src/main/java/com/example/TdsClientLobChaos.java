@@ -22,16 +22,16 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientLobChaosTest {
+public class TdsClientLobChaos {
 
-  private static final Logger logger = LoggerFactory.getLogger(TdsClientLobChaosTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(TdsClientLobChaos.class);
 
   // Generates a ~25MB string payload to ensure it is chunked over the network
 //  private static final String lobQuery = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 25000000) AS LargeString;";
   private static final String lobQuery = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), 2500000) AS LargeString;";
 
   public static void main(String[] args) {
-    new TdsClientLobChaosTest().run();
+    new TdsClientLobChaos().run();
   }
 
   private void run() {

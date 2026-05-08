@@ -62,7 +62,7 @@ public class TdsClientRandomAsync {
         .block();
   }
 
-  // ADD THIS BACK IN: This is the entry point for TdsTestAll
+  // ADD THIS BACK IN: This is the entry point for TdsClientTestAll
   public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),

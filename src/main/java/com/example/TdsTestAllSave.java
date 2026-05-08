@@ -46,7 +46,7 @@ public class TdsTestAllSave {
 
     ConnectionPool pool = new ConnectionPool(poolConfiguration);
 
-    System.out.println("Booting Global Connection Pool for TdsTestAll Bulk Execution...");
+    System.out.println("Booting Global Connection Pool for TdsClientTestAll Bulk Execution...");
 
     UUID traceId = UUID.randomUUID();
 
@@ -68,16 +68,16 @@ public class TdsTestAllSave {
 //    return runTest("TdsClient (Primary Setup)", () -> new TdsClient().runSql(pool, traceId))
 //
 //        // 2. Execute the rest sequentially, passing the shared pool to each
-//        .then(runTest("TdsAllDataTypesTest", () -> new TdsAllDataTypesTest().runSql(pool)))
+//        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
 //        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
-//        .then(runTest("TdsClientErrorTest", () -> new TdsClientErrorTest().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNonNumericTest", () -> new TdsClientExhaustiveNonNumericTest().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNumericTest", () -> new TdsClientExhaustiveNumericTest().runSql(pool)))
-//        .then(runTest("TdsClientFilterTest", () -> new TdsClientFilterTest().runSql(pool)))
+//        .then(runTest("TdsClientError", () -> new TdsClientError().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNonNumeric", () -> new TdsClientExhaustiveNonNumeric().runSql(pool)))
+//        .then(runTest("TdsClientExhaustiveNumeric", () -> new TdsClientExhaustiveNumeric().runSql(pool)))
+//        .then(runTest("TdsClientFilter", () -> new TdsClientFilter().runSql(pool)))
 //        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
-////        .then(runTest("TdsClientLobTest", () -> new TdsClientLobTest().runSql(pool)))
-//        .then(runTest("TdsClientOrderSyncLobTest", () -> new TdsClientOrderSyncLobTest().runSql(pool)))
-//        .then(runTest("TdsClientOrderSyncTest", () -> new TdsClientOrderSyncTest().runSql(pool)))
+////        .then(runTest("TdsClientLob", () -> new TdsClientLob().runSql(pool)))
+//        .then(runTest("TdsClientOrderSyncLob", () -> new TdsClientOrderSyncLob().runSql(pool)))
+//        .then(runTest("TdsClientOrderSync", () -> new TdsClientOrderSync().runSql(pool)))
 
 //    return Mono.usingWhen(
 //        Mono.from(pool.create()),
@@ -101,7 +101,7 @@ public class TdsTestAllSave {
 //        .then(runTest("TdsClientTestSelect", () -> new TdsClientTestSelect().runSql(pool)))
 //        .then(runTest("TdsClientTypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)))
 //        .then(runTest("TdsClientXmlStream", () -> new TdsClientXmlStream().runSql(pool)))
-//        .then(runTest("TdsTransactionTestSimple", () -> new TdsTransactionTestSimple().runSql(pool)));
+//        .then(runTest("TdsClientTransactionSimple", () -> new TdsClientTransactionSimple().runSql(pool)));
   }
 
   /**

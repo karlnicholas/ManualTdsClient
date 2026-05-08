@@ -14,10 +14,10 @@ import java.util.UUID;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientExhaustiveNonNumericTest {
+public class TdsClientExhaustiveNonNumeric {
 
   public static void main(String[] args) {
-    new TdsClientExhaustiveNonNumericTest().run();
+    new TdsClientExhaustiveNonNumeric().run();
   }
 
   private void run() {
