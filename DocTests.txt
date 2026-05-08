@@ -1,63 +1,77 @@
+1. Type Mapping & Binding (Row, RowMetadata, Parameters)
 
-1. Chaos, Stress, and Randomization Testing
+Focuses on io.r2dbc.spi.Row consumption, native TDS-to-Java type conversion, and verifying driver metadata compliance.
 
-These tests likely introduce unpredictable elements, high loads, or random inputs to ensure the client remains stable under duress.
-
-	TdsClientChaosTest
-	TdsClientBatchChaosTest
-	TdsClientLobChaosTest
-	TdsClientMacroChaosTest
-	TdsClientSqlBatchChaosTest
-	TdsClientSpStress
-
-2. LOB (Large Object) Handling
-
-Given the number of specific files, managing Large Objects (like BLOBs or CLOBs) is a dedicated category to ensure memory and stream handling works correctly.
-
-	TdsClientLobTest
-	TdsClientLobBinding
-	TdsClientBatchLobBinding
-	TdsClientLobOkTest
-	TdsClientLobBug
-
-3. Data Types and Binding Validation
-
-Tests dedicated to ensuring all SQL data types map, bind, and serialize/deserialize correctly between Java and the database.
-
-	TdsClientExhaustiveNumericTest
-	TdsClientExhaustiveNonNumericTest
+	TdsClientAllDataTypes
+	TdsClientExhaustiveNumeric
+	TdsClientExhaustiveNonNumeric
 	TdsClientBindingMatrixSymmetry
 	TdsClientTypeMatrix
 	TdsClientXmlStream
 
-4. Error, Exception, and Edge-Case Handling
+2. Large Object Handling (Blob, Clob)
 
-Tests that intentionally trigger bad states, malformed packets, or exceptions to verify the client fails gracefully or recovers.
+Focuses on reactive stream compliance for large data chunks (io.r2dbc.spi.Blob and Clob) to ensure memory and stream boundaries are maintained without exhausting the heap.
 
-	TdsClientErrorTest
-	TdsClientExceptions
-	TdsClientMisbehaviorTest
-	TdsClientMicroPoison
-	TdsClientEomParadoxTest
+	TdsClientLob
+	TdsClientLobBinding
+	TdsClientLobOk
+	TdsClientLobBug
 
-5. Execution Mechanics (Batches, Selects, and Params)
+3. Parameterized Statement Execution (Statement)
 
-Tests focusing on specific SQL execution paths and standard query mechanics.
+Focuses on io.r2dbc.spi.Statement interactions. This includes standard query execution, parsing Out Parameters (Result.OutSegment), and parameterized batching via the Statement.add() API.
 
-	TdsClientTestOutParams
-	TdsClientTraceId
-	TdsClientFilterTest
-	TdsClientOrderTest
-	TdsClientOrderSyncTest
-	TdsClientOrderSyncLobTest
-	TdsTransactionTestSimple
 	TdsClientTestSelect
 	TdsClientSelectOne
-	TdsClient
+	TdsClientTestOutParams
+	TdsClientBatchLobBinding *(Validating stream behavior when parameterized batching is mixed with LOBs)*
+	TdsClientEssential
+	TdsClientTestAll
 
+4. Static Batch Execution (Batch)
 
-6. High Throughput
+Strictly isolated to the io.r2dbc.spi.Batch interface for executing multiple, parameter-less raw SQL strings in a single network request.
 
+	TdsClientBatch
+	TdsClientBatchChaos
+	TdsClientSqlBatchChaos
+
+5. Transaction Management (Connection)
+
+Focuses on the lifecycle of transactions (beginTransaction, commitTransaction, rollbackTransaction) and isolation level configurations.
+
+	TdsClientTransactionSimple
+
+6. Error Translation & Diagnostics (R2dbcException)
+
+Ensures native database errors and corrupted packets are gracefully caught and correctly mapped into the standard io.r2dbc.spi.R2dbcException hierarchy.
+
+	TdsClientExceptions
+	TdsClientError
+	TdsClientMisbehavior
+	TdsClientMicroPoison
+	TdsClientEomParadox
+
+7. Reactive Streams Compliance & Concurrency
+
+Validates that the client strictly obeys Reactive Streams specifications (backpressure, thread safety, execution ordering) across heavy asynchronous boundaries.
+
+	TdsClientOrder
+	TdsClientOrderSync
+	TdsClientOrderSyncLob
 	TdsClientRandom
 	TdsClientRandomAsync
 	TdsClientRandomPool
+	TdsClientChaos
+	TdsClientMacroChaos
+	TdsClientLobChaos
+	TdsClientSpStress
+
+8. Observability & Extensions
+
+Tests features that observe or intercept the core SPI, typically via connection factories or wrappers.
+
+	TdsClientFilter
+	TdsClientTraceId
+
