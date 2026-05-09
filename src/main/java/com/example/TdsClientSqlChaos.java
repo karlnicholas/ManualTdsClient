@@ -16,12 +16,12 @@ import java.time.Duration;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientSqlBatchChaos {
+public class TdsClientSqlChaos {
 
-  private static final Logger logger = LoggerFactory.getLogger(TdsClientSqlBatchChaos.class);
+  private static final Logger logger = LoggerFactory.getLogger(TdsClientSqlChaos.class);
 
   public static void main(String[] args) {
-    new TdsClientSqlBatchChaos().run();
+    new TdsClientSqlChaos().run();
   }
 
   private void run() {
@@ -43,12 +43,12 @@ public class TdsClientSqlBatchChaos {
 
     ConnectionPool pool = new ConnectionPool(poolConfiguration);
 
-    logger.info("Connecting to pool for SQL Batch Chaos Suite...");
+    logger.info("Connecting to pool for SQL StatementAdd Chaos Suite...");
 
     Mono.usingWhen(
             Mono.just(pool),
             this::runSql,
-            p -> p.disposeLater().doOnSuccess(v -> logger.info("\n✅ SQL Batch Chaos Suite Complete."))
+            p -> p.disposeLater().doOnSuccess(v -> logger.info("\n✅ SQL StatementAdd Chaos Suite Complete."))
         )
         .doOnError(t -> logger.error("\n❌ Test Suite Failed: {}", t.getMessage()))
         .block();
@@ -80,10 +80,10 @@ public class TdsClientSqlBatchChaos {
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 2: The Trap (Massive Raw SQL Batch + .take(2))
+  // TEST 2: The Trap (Massive Raw SQL StatementAdd + .take(2))
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test2_TheMultiStatementTrap(Connection connection) {
-    logger.info("\n--- TEST 2: The Trap (Massive SQL Batch + .take(2)) ---");
+    logger.info("\n--- TEST 2: The Trap (Massive SQL StatementAdd + .take(2)) ---");
 
     // Build a massive, multi-statement string.
     // 2,000 distinct SELECT statements sent in a single physical payload.

@@ -13,11 +13,11 @@ import java.time.Duration;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientBatchChaos {
-  private static final Logger logger = LoggerFactory.getLogger(TdsClientBatchChaos.class);
+public class TdsClientStatementAddChaos {
+  private static final Logger logger = LoggerFactory.getLogger(TdsClientStatementAddChaos.class);
 
   public static void main(String[] args) {
-    new TdsClientBatchChaos().run();
+    new TdsClientStatementAddChaos().run();
   }
 
   private void run() {
@@ -40,12 +40,12 @@ public class TdsClientBatchChaos {
 
     ConnectionPool pool = new ConnectionPool(poolConfiguration);
 
-    logger.info("Connecting to pool for Batch Chaos Suite...");
+    logger.info("Connecting to pool for StatementAdd Chaos Suite...");
 
     Mono.usingWhen(
             Mono.just(pool),
             this::runSql,
-            p -> p.disposeLater().doOnSuccess(v -> logger.info("\n✅ Batch Chaos Suite Complete. Connection pool closed."))
+            p -> p.disposeLater().doOnSuccess(v -> logger.info("\n✅ StatementAdd Chaos Suite Complete. Connection pool closed."))
         )
         .doOnError(t -> logger.error("\n❌ Test Suite Failed: {}", t.getMessage()))
         .block();
@@ -60,47 +60,47 @@ public class TdsClientBatchChaos {
             .then(test1_SimpleBatch(connection))
             .then(test2_StressBatchSingleConn(connection))
             .then(test3_StressBatchConcurrent(pool)) // Passes the pool for concurrent execution
-            .then(test4_TheTrailingTokenTrap(connection)) // The 2000-batch trap
+            .then(test4_TheTrailingTokenTrap(connection)) // The 2000-StatementAdd trap
             .then(test5_TheVictim(connection)),           // The query that steps in it
         Connection::close
     );
   }
 
   private Mono<Void> setupTable(Connection connection) {
-    String ddl = "DROP TABLE IF EXISTS dbo.BatchStress; " +
-        "CREATE TABLE dbo.BatchStress (" +
+    String ddl = "DROP TABLE IF EXISTS dbo.StatementAdd; " +
+        "CREATE TABLE dbo.StatementAdd (" +
         "id INT IDENTITY(1,1) PRIMARY KEY, " +
-        "batch_name VARCHAR(50), " +
+        "statement_add_name VARCHAR(50), " +
         "iteration INT" +
         ");";
     return Mono.from(connection.createStatement(ddl).execute()).then();
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 1: Simple 3 Batch Test
+  // TEST 1: Simple 3 StatementAdd Test
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test1_SimpleBatch(Connection connection) {
-    logger.info("\n--- TEST 1: Simple 3 Batch Test ---");
+    logger.info("\n--- TEST 1: Simple 3 StatementAdd Test ---");
     Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.BatchStress (batch_name, iteration) VALUES (@name, @iter)");
+        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
-    stmt.bind("name", "SimpleBatch").bind("iter", 1).add()
-        .bind("name", "SimpleBatch").bind("iter", 2).add()
-        .bind("name", "SimpleBatch").bind("iter", 3); // Final parameter set
+    stmt.bind("name", "SimpleStatementAdd").bind("iter", 1).add()
+        .bind("name", "SimpleStatementAdd").bind("iter", 2).add()
+        .bind("name", "SimpleStatementAdd").bind("iter", 3); // Final parameter set
 
     return Flux.from(stmt.execute())
         .flatMap(Result::getRowsUpdated)
-        .doOnNext(rows -> logger.info("  SimpleBatch row updated: {}", rows))
+        .doOnNext(rows -> logger.info("  SimpleStatementAdd row updated: {}", rows))
         .then();
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 2: Stressful Batch Test (Single Connection, 1000 items)
+  // TEST 2: Stressful StatementAdd Test (Single Connection, 1000 items)
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test2_StressBatchSingleConn(Connection connection) {
-    logger.info("\n--- TEST 2: Stress Batch (Single Connection, 1000 items) ---");
+    logger.info("\n--- TEST 2: Stress StatementAdd (Single Connection, 1000 items) ---");
     Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.BatchStress (batch_name, iteration) VALUES (@name, @iter)");
+        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
     for (int i = 1; i <= 1000; i++) {
       stmt.bind("name", "StressSingle").bind("iter", i);
@@ -113,24 +113,24 @@ public class TdsClientBatchChaos {
     return Flux.from(stmt.execute())
         .flatMap(Result::getRowsUpdated)
         .count()
-        .doOnNext(count -> logger.info("  StressSingle processed {} batch results.", count))
+        .doOnNext(count -> logger.info("  StressSingle processed {} StatementAdd results.", count))
         .then();
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 3: Stressful Batch Test (Connection Pool, Concurrency Level 20)
+  // TEST 3: Stressful StatementAdd Test (Connection Pool, Concurrency Level 20)
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test3_StressBatchConcurrent(ConnectionPool pool) {
-    logger.info("\n--- TEST 3: Stress Batch (Pool Concurrency Level 20) ---");
+    logger.info("\n--- TEST 3: Stress StatementAdd (Pool Concurrency Level 20) ---");
 
     // Creates 20 parallel reactive pipelines. Each one borrows its own connection
-    // from the pool and executes a batch of 50 inserts.
+    // from the pool and executes a StatementAdd of 50 inserts.
     return Flux.range(1, 20)
         .flatMap(workerId -> Mono.usingWhen(
             Mono.from(pool.create()),
             conn -> {
               Statement stmt = conn.createStatement(
-                  "INSERT INTO dbo.BatchStress (batch_name, iteration) VALUES (@name, @iter)");
+                  "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
               for (int i = 1; i <= 50; i++) {
                 stmt.bind("name", "ConcurrentWorker_" + workerId).bind("iter", i);
                 if (i < 50) stmt.add();
@@ -146,14 +146,14 @@ public class TdsClientBatchChaos {
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 4: The Trailing Token Trap (Intentional Mid-Batch Cancellation)
+  // TEST 4: The Trailing Token Trap (Intentional Mid-StatementAdd Cancellation)
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test4_TheTrailingTokenTrap(Connection connection) {
-    logger.info("\n--- TEST 4: The Trailing Token Trap (Massive Batch + .take(2)) ---");
+    logger.info("\n--- TEST 4: The Trailing Token Trap (Massive StatementAdd + .take(2)) ---");
     Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.BatchStress (batch_name, iteration) VALUES (@name, @iter)");
+        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
-    // Batch of 2000 to completely shatter the 8000-byte TDS packet boundary
+    // StatementAdd of 2000 to completely shatter the 8000-byte TDS packet boundary
     int massiveBatchSize = 2000;
     for (int i = 1; i <= massiveBatchSize; i++) {
       stmt.bind("name", "TheTrap").bind("iter", i);
@@ -166,7 +166,7 @@ public class TdsClientBatchChaos {
         .take(2)
         .flatMap(Result::getRowsUpdated)
         .doOnNext(rows -> logger.info("  Trap read row updated: {}", rows))
-        .doOnCancel(() -> logger.warn("  [!] Trap Cancelled! Remaining batch tokens are flying across the wire!"))
+        .doOnCancel(() -> logger.warn("  [!] Trap Cancelled! Remaining StatementAdd tokens are flying across the wire!"))
         .then();
   }
 

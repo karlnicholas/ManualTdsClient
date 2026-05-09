@@ -3,7 +3,6 @@ package com.example;
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Blob;
-import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
@@ -16,16 +15,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientBatchLobBinding {
+public class TdsClientStatementAddLobBinding {
 
   public static void main(String[] args) {
-    new TdsClientBatchLobBinding().run();
+    new TdsClientStatementAddLobBinding().run();
   }
 
   private void run() {
@@ -80,20 +78,20 @@ public class TdsClientBatchLobBinding {
 
     Statement stmt = connection.createStatement(insertSql);
 
-    // Bind first set (Batch 1)
+    // Bind first set (StatementAdd 1)
     stmt.bind("@id", 1).bind("@data", Blob.from(heavyStream)).add();
 
-    // Bind second set (Batch 2)
+    // Bind second set (StatementAdd 2)
     stmt.bind("@id", 2).bind("@data", Blob.from(heavyStream)).add();
 
     // Bind third set (Standard byte array to test mix)
     byte[] smallData = new byte[]{0x10, 0x20, 0x30};
     stmt.bind("@id", 3).bind("@data", ByteBuffer.wrap(smallData)).add();
 
-    System.out.println("\n--- Executing Parameterized LOB Batch ---");
+    System.out.println("\n--- Executing Parameterized LOB StatementAdd ---");
     return Flux.from(stmt.execute())
         .flatMap(Result::getRowsUpdated)
-        .doOnNext(count -> System.out.println("  -> Batch part updated: " + count))
+        .doOnNext(count -> System.out.println("  -> StatementAdd part updated: " + count))
         .then();
   }
 

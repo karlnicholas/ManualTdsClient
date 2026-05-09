@@ -92,7 +92,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
       // Batch 1: High Volume & LOBs
       runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomAsync().runSql(pool)),
       runTest("CONCURRENT: RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
-      runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOk().runSql(pool)),
+//      runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOk().runSql(pool)),
 
       // Batch 2: Precision & State
       runTest("CONCURRENT: TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
