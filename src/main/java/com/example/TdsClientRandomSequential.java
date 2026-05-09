@@ -16,8 +16,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -25,9 +26,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientRandomAsync {
-  public static void main(String[] args) {
-    new TdsClientRandomAsync().run();
+public class TdsClientRandomSequential {
+  public static void main(String[] args) throws Exception {
+    new TdsClientRandomSequential().run();
   }
 
   private void run() {
@@ -44,13 +45,13 @@ public class TdsClientRandomAsync {
     // Configure a simple pool for the standalone client execution
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
         .initialSize(2)
-        .maxSize(10) // Small pool for this specific test
+        .maxSize(10)
         .maxIdleTime(Duration.ofMinutes(10))
         .build();
 
     ConnectionPool pool = new ConnectionPool(poolConfiguration);
 
-    System.out.println("Connecting to pool for Async Load Testing...");
+    System.out.println("Connecting to pool for Comprehensive Binding Matrix & Way Testing...");
 
     // Manage the Pool lifecycle and fail-fast on errors
     Mono.usingWhen(
@@ -62,74 +63,74 @@ public class TdsClientRandomAsync {
         .block();
   }
 
-  // ADD THIS BACK IN: This is the entry point for TdsClientTestAll
+  /**
+   * Overloaded method: Takes a ConnectionPool, borrows a single connection,
+   * runs the tests, and safely releases the connection back to the pool.
+   */
   public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),
-        this::runSql,       // Run the 6000 queries on the single borrowed connection
-        Connection::close   // Safely return it so the audit can grab it next
+        this::runSql,
+        Connection::close
     );
   }
 
-  // Keep this exactly as it is:
-  public Mono<Void> runSql(Connection connection) {
+  private Mono<Void> runSql(Connection connection) {
+    // 1. Fetch columns FIRST
     return fetchColumnNames(connection)
+        // 2. ONLY when columns are done, fetch max ID
         .flatMap(allColumns -> fetchMaxId(connection)
+            // 3. Now we have both, proceed to the loop
             .flatMap(maxId -> {
-              if (maxId <= 0) {
-                return Mono.error(new IllegalStateException("Table is empty (maxId=0), cannot run tests."));
-              }
-              return executeLoadTest(connection, allColumns, maxId);
+              System.out.println("Found max id = " + maxId);
+              Random random = new Random();
+
+              // 4. Execute 6000 random queries sequentially using concatMap
+              return Flux.range(1, 6000)
+                  .concatMap(i -> {
+                    int numColumns = random.nextInt(allColumns.size()) + 1;
+
+                    List<String> shuffledColumns = new ArrayList<>(allColumns);
+                    Collections.shuffle(shuffledColumns);
+                    List<String> selectedColumns = shuffledColumns.subList(0, numColumns); // Assigned once, now effectively final!
+
+                    String selectList = String.join(", ", selectedColumns);
+
+                    int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
+                    int numRows = random.nextInt(maxPossibleRows) + 1;
+
+                    List<Integer> possibleIds = IntStream.rangeClosed(1, maxId).boxed().collect(Collectors.toList());
+                    Collections.shuffle(possibleIds);
+                    List<Integer> selectedIds = possibleIds.subList(0, Math.min(numRows, possibleIds.size()));
+
+                    String idList = selectedIds.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(", "));
+
+                    String whereClause = selectedIds.isEmpty() ? "WHERE 1=0" : "WHERE id IN (" + idList + ")";
+
+                    String dynamicQuery = """
+                          SET TEXTSIZE -1;
+                          SELECT %s
+                          FROM dbo.AllDataTypes
+                          %s
+                          ORDER BY id;
+                          """.formatted(selectList, whereClause);
+
+                    if (i % 1000 == 0) {
+                      System.out.println(i);
+                    }
+
+                    String stepName = "Random Query #" + i + " (" + numColumns + " cols, " + numRows + " rows)";
+
+                    // Wrap the execution in Mono.defer() to prevent synchronous evaluation
+                    return Mono.defer(() ->
+                        executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
+                    );
+                  })
+                  .then(); // Convert the Flux<Void> of 6000 queries into a single Mono<Void>
             })
         );
-  }
-
-  private Mono<Void> executeLoadTest(Connection connection, List<String> allColumns, int maxId) {
-    System.out.println("Found max id = " + maxId + ". Starting async load test...");
-
-    // 4. Execute 6000 random queries asynchronously.
-    return Flux.range(1, 6000)
-        .flatMap(i -> {
-          ThreadLocalRandom random = ThreadLocalRandom.current();
-
-          int numColumns = random.nextInt(allColumns.size()) + 1;
-          List<String> shuffledColumns = new ArrayList<>(allColumns);
-          Collections.shuffle(shuffledColumns, random);
-          List<String> selectedColumns = shuffledColumns.subList(0, numColumns);
-
-          String selectList = String.join(", ", selectedColumns);
-
-          int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
-          int numRows = random.nextInt(maxPossibleRows) + 1;
-
-          String idList = random.ints(1, maxId + 1)
-              .distinct()
-              .limit(numRows)
-              .mapToObj(String::valueOf)
-              .collect(Collectors.joining(", "));
-
-          String whereClause = idList.isEmpty() ? "WHERE 1=0" : "WHERE id IN (" + idList + ")";
-
-          String dynamicQuery = """
-                SET TEXTSIZE -1;
-                SELECT %s
-                FROM dbo.AllDataTypes
-                %s
-                ORDER BY id;
-                """.formatted(selectList, whereClause);
-
-          if (i % 1000 == 0) {
-            System.out.println("Dispatched Random Async Query #" + i);
-          }
-
-          String stepName = "Query #" + i;
-
-          // FIX: Pass dynamicQuery as the second argument
-          return Mono.defer(() ->
-              executeRandomQuery(stepName, dynamicQuery, connection.createStatement(dynamicQuery).execute(), selectedColumns)
-          );
-        }, 256) // The extreme concurrency over a single connection
-        .then();
   }
 
   // --- Latch-Free Helper Methods ---
@@ -159,10 +160,10 @@ public class TdsClientRandomAsync {
 
     return Flux.from(connection.createStatement(sql).execute())
         .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-        .single();
+        .single(); // Waits for the complete server response (DONE token)
   }
 
-  private Mono<Void> executeRandomQuery(String stepName, String query, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
+  private Mono<Void> executeRandomQuery(String stepName, Publisher<? extends Result> resultPublisher, List<String> columnOrder) {
     return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           StringBuilder sb = new StringBuilder();
@@ -176,13 +177,9 @@ public class TdsClientRandomAsync {
           }
           return sb.toString().trim();
         }))
+        // Consume the items reactively instead of using a subscriber block
         .doOnNext(item -> {})
-        .timeout(Duration.ofSeconds(30))
-        .doOnError(error -> {
-          System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
-          // SPRING THE TRAP: Now 'query' is available to use as the map key
-//          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
-        })
-        .then();
+        .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
+        .then(); // Signals completion to the concatMap
   }
 }

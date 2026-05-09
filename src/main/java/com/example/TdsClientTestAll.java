@@ -62,7 +62,7 @@ public class TdsClientTestAll {
 
 //  private Mono<Void> executeAllTests(ConnectionPool pool) {
 //    // Both tests manage their own internal checkouts from the passed pool
-//    return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
+//    return runTest("TdsClientRandomBaseline", () -> new TdsClientRandomBaseline().runSql(pool))
 //        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
 //        // 2. Execute the rest sequentially, passing the shared pool to each
 //        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
@@ -90,7 +90,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
   // They will all compete for the 50 connections in the global pool.
   return Mono.when(
       // Batch 1: High Volume & LOBs
-      runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomAsync().runSql(pool)),
+      runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomBaseline().runSql(pool)),
       runTest("CONCURRENT: RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
 //      runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOk().runSql(pool)),
 
@@ -113,7 +113,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
 //
 //    // Batch 1: The "Hammer" Batch (High-frequency random queries vs. Massive LOB streams)
 //    Mono<Void> batch1 = Mono.when(
-//        runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomAsync().runSql(pool)),
+//        runTest("CONCURRENT: RandomAsync", () -> new TdsClientRandomBaseline().runSql(pool)),
 //        runTest("CONCURRENT: RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
 //        runTest("CONCURRENT: LOB Stress", () -> new TdsClientLobOk().runSql(pool))
 //    );

@@ -82,15 +82,15 @@ public class TdsTestAllSave {
 //    return Mono.usingWhen(
 //        Mono.from(pool.create()),
 //        con->{
-//          return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(con))
-//              .then(runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(con)));
+//          return runTest("TdsClientRandomBaseline", () -> new TdsClientRandomBaseline().runSql(con))
+//              .then(runTest("TdsClientRandomBaseline", () -> new TdsClientRandomBaseline().runSql(con)));
 //        },
 //        Connection::close
 //    );
 
     return runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool));
 
-//        return runTest("TdsClientRandomAsync", () -> new TdsClientRandomAsync().runSql(pool))
+//        return runTest("TdsClientRandomBaseline", () -> new TdsClientRandomBaseline().runSql(pool))
 //        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)));
 
 //        return runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool))
