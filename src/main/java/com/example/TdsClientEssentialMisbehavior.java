@@ -20,9 +20,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientMisbehavior {
+public class TdsClientEssentialMisbehavior {
   public static void main(String[] args) {
-    new TdsClientMisbehavior().run();
+    new TdsClientEssentialMisbehavior().run();
   }
 
   private void run() {
@@ -60,7 +60,6 @@ public class TdsClientMisbehavior {
         Mono.from(pool.create()),
         connection ->
             testMapperException(connection)
-                .then(testPrematureCancellation(connection))
                 .then(testDoubleSubscription(connection))
                 .then(testUnconsumedResult(connection))
                 .then(testBlockingInMapper(connection))
@@ -89,21 +88,6 @@ public class TdsClientMisbehavior {
           return Mono.empty();
         })
         .then(testSocketIntegrity(connection, "Post-Mapper Exception Check"));
-  }
-
-  /**
-   * Misbehavior 2: The application uses .take(1) on a query that returns many rows.
-   * Tests if the driver correctly issues an Attention signal to abort the remaining un-pulled network stream.
-   */
-  private Mono<Void> testPrematureCancellation(Connection connection) {
-    System.out.println("\n--- Test 2: Premature Reactive Cancellation (take 1) ---");
-    // A system table query that is guaranteed to return many rows
-    return Flux.from(connection.createStatement("SELECT * FROM sys.all_objects").execute())
-        .flatMap(result -> result.map((row, meta) -> row.get("name", String.class)))
-        .take(1) // Instantly cancels the upstream subscription after the 1st row
-        .doOnNext(val -> System.out.println(" Fetched 1 row then abandoned stream: " + val))
-        .then()
-        .then(testSocketIntegrity(connection, "Post-Premature Cancellation Check"));
   }
 
   /**

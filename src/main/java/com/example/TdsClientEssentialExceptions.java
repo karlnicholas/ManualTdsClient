@@ -19,9 +19,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientExceptions {
+public class TdsClientEssentialExceptions {
   public static void main(String[] args) {
-    new TdsClientExceptions().run();
+    new TdsClientEssentialExceptions().run();
   }
 
   private void run() {

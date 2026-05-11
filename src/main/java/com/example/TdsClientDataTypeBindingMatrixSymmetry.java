@@ -9,16 +9,14 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.time.*;
-import java.util.UUID;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientBindingMatrixSymmetry {
+public class TdsClientDataTypeBindingMatrixSymmetry {
 
   public static void main(String[] args) {
-    new TdsClientBindingMatrixSymmetry().run();
+    new TdsClientDataTypeBindingMatrixSymmetry().run();
   }
 
   private void run() {

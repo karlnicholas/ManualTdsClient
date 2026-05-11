@@ -29,10 +29,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientSpStress {
+public class TdsClientBindSpStress {
 
   public static void main(String[] args) {
-    new TdsClientSpStress().run();
+    new TdsClientBindSpStress().run();
   }
 
   private void run() {

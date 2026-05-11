@@ -66,10 +66,10 @@ public class TdsClientTestAll {
 //        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
 //        // 2. Execute the rest sequentially, passing the shared pool to each
 //        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
-//        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeBindingMatrixSymmetry", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)))
 //        .then(runTest("TdsClientError", () -> new TdsClientError().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNonNumeric", () -> new TdsClientExhaustiveNonNumeric().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNumeric", () -> new TdsClientExhaustiveNumeric().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeNonNumeric", () -> new TdsClientDataTypeNonNumeric().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeNumeric", () -> new TdsClientDataTypeNumeric().runSql(pool)))
 //        .then(runTest("TdsClientFilter", () -> new TdsClientFilter().runSql(pool)))
 //        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
 //        .then(runTest("TdsClientLob", () -> new TdsClientLob().runSql(pool)))
@@ -98,13 +98,13 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
       runTest("CONCURRENT: TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
       runTest("CONCURRENT: XML Stream", () -> new TdsClientXmlStream().runSql(pool)),
       runTest("CONCURRENT: Transaction Logic", () -> new TdsClientTransactionSimple().runSql(pool)),
-      runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientExhaustiveNumeric().runSql(pool)),
+      runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientDataTypeNumeric().runSql(pool)),
 
       // Batch 3: Edge Cases & Protocol Stress
 //      runTest("CONCURRENT: Error Recovery", () -> new TdsClientError().runSql(pool)),
       runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilter().runSql(pool)),
-      runTest("CONCURRENT: Binding Matrix", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)),
-      runTest("CONCURRENT: Non-Numeric Matrix", () -> new TdsClientExhaustiveNonNumeric().runSql(pool)),
+      runTest("CONCURRENT: Binding Matrix", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)),
+      runTest("CONCURRENT: Non-Numeric Matrix", () -> new TdsClientDataTypeNonNumeric().runSql(pool)),
       runTest("CONCURRENT: AllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool))
   );
 }
@@ -123,14 +123,14 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
 //        runTest("CONCURRENT: TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
 //        runTest("CONCURRENT: XML Stream", () -> new TdsClientXmlStream().runSql(pool)),
 //        runTest("CONCURRENT: Transaction Logic", () -> new TdsClientTransactionSimple().runSql(pool)),
-//        runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientExhaustiveNumeric().runSql(pool))
+//        runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientDataTypeNumeric().runSql(pool))
 //    );
 //
 //    // Batch 3: The "Edge Case" Batch (Errors, Binding Symmetry, and Filtering)
 //    Mono<Void> batch3 = Mono.when(
 //        runTest("CONCURRENT: Error Recovery", () -> new TdsClientError().runSql(pool)),
 //        runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilter().runSql(pool)),
-//        runTest("CONCURRENT: Binding Matrix", () -> new TdsClientBindingMatrixSymmetry().runSql(pool))
+//        runTest("CONCURRENT: Binding Matrix", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool))
 //    );
 //
 //    // Execute the batches sequentially so the Audit remains deterministic

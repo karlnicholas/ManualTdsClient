@@ -69,10 +69,10 @@ public class TdsTestAllSave {
 //
 //        // 2. Execute the rest sequentially, passing the shared pool to each
 //        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
-//        .then(runTest("TdsClientBindingMatrixSymmetry", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeBindingMatrixSymmetry", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)))
 //        .then(runTest("TdsClientError", () -> new TdsClientError().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNonNumeric", () -> new TdsClientExhaustiveNonNumeric().runSql(pool)))
-//        .then(runTest("TdsClientExhaustiveNumeric", () -> new TdsClientExhaustiveNumeric().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeNonNumeric", () -> new TdsClientDataTypeNonNumeric().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeNumeric", () -> new TdsClientDataTypeNumeric().runSql(pool)))
 //        .then(runTest("TdsClientFilter", () -> new TdsClientFilter().runSql(pool)))
 //        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
 ////        .then(runTest("TdsClientLob", () -> new TdsClientLob().runSql(pool)))

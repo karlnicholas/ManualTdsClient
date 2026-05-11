@@ -13,7 +13,6 @@ import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -31,9 +30,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientChaos {
+public class TdsClientEssentialChaos {
   public static void main(String[] args) throws Exception {
-    new TdsClientChaos().run();
+    new TdsClientEssentialChaos().run();
   }
 
   private void run() {
@@ -173,22 +172,6 @@ public class TdsClientChaos {
           });
     });
   }
-
-  // --- The Universal Async Helper (LATCH-FREE) ---
-
-  private <T> Mono<Void> executeStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
-    System.out.println("\n--- Executing: " + stepName + " ---");
-
-    // Build the reactive pipeline without subscribing or blocking
-    return Flux.from(resultPublisher)
-        .flatMap(extractor)
-        .doOnNext(item -> System.out.println("  -> " + item))
-        .doOnError(error -> System.err.println("[" + stepName + "] Stream Error: " + error.getMessage()))
-        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
-        .then(); // .then() converts Flux<T> into a Mono<Void> that completes when the Flux finishes
-  }
-
-  // --- The Universal Async Helper using Reactor Flux ---
 
   BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
       row.get(0, Integer.class),
