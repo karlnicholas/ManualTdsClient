@@ -81,9 +81,6 @@ public class TdsClientChaos {
   }
 
   public Mono<Void> runSql(Connection connection) {
-    UUID traceId = UUID.randomUUID();
-    System.out.println("Injecting Trace ID: " + traceId);
-
     // Chain the chaos tests sequentially on the same connection.
     // If the driver is truly stable, the connection will survive all of these
     // and process the final test perfectly.
@@ -92,8 +89,7 @@ public class TdsClientChaos {
         .then(test2_ThrowInUserCode(connection))
         .onErrorResume(e -> Mono.empty())
         .then(test3_SlowConsumer(connection))
-        .then(test4_DelayedDemand(connection))
-        .contextWrite(Context.of("trace-id", traceId));
+        .then(test4_DelayedDemand(connection));
   }
 
   // --- CHAOS TEST 1: The Mid-Stream Cancel ---

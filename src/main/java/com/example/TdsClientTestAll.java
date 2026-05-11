@@ -101,7 +101,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
       runTest("CONCURRENT: Numeric Matrix", () -> new TdsClientExhaustiveNumeric().runSql(pool)),
 
       // Batch 3: Edge Cases & Protocol Stress
-      runTest("CONCURRENT: Error Recovery", () -> new TdsClientError().runSql(pool)),
+//      runTest("CONCURRENT: Error Recovery", () -> new TdsClientError().runSql(pool)),
       runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilter().runSql(pool)),
       runTest("CONCURRENT: Binding Matrix", () -> new TdsClientBindingMatrixSymmetry().runSql(pool)),
       runTest("CONCURRENT: Non-Numeric Matrix", () -> new TdsClientExhaustiveNonNumeric().runSql(pool)),

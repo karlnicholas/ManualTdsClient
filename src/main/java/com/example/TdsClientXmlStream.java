@@ -2,6 +2,7 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
+import io.r2dbc.spi.Clob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
@@ -96,7 +97,7 @@ public class TdsClientXmlStream {
     """;
 
     return Flux.from(connection.createStatement(massiveXmlSql).execute())
-        .flatMap(result -> result.map((row, meta) -> row.get(0, io.r2dbc.spi.Clob.class)))
+        .flatMap(result -> result.map((row, meta) -> row.get(0, Clob.class)))
         .flatMap(clob -> {
           Flux<CharSequence> monitoredStream = Flux.from(clob.stream())
               .doOnRequest(n -> logger.trace("Driver requested {} chunks from socket", n))
