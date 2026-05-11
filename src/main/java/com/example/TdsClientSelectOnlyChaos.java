@@ -6,10 +6,8 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import io.r2dbc.spi.Result;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
-import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,7 +20,6 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
 import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
@@ -30,9 +27,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientEssentialChaos {
+public class TdsClientSelectOnlyChaos {
   public static void main(String[] args) throws Exception {
-    new TdsClientEssentialChaos().run();
+    new TdsClientSelectOnlyChaos().run();
   }
 
   private void run() {

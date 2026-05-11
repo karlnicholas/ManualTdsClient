@@ -28,10 +28,10 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientAllDataTypes {
+public class TdsClientDataTypeAll {
 
   public static void main(String[] args) {
-    new TdsClientAllDataTypes().run();
+    new TdsClientDataTypeAll().run();
   }
 
   private void run() {

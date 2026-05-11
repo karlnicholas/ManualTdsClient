@@ -65,7 +65,7 @@ public class TdsClientTestAll {
 //    return runTest("TdsClientRandomBaseline", () -> new TdsClientRandomBaseline().runSql(pool))
 //        .then(runTest("TdsClientRandomPool", () -> new TdsClientRandomPool().runSql(pool)))
 //        // 2. Execute the rest sequentially, passing the shared pool to each
-//        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeAll", () -> new TdsClientDataTypeAll().runSql(pool)))
 //        .then(runTest("TdsClientDataTypeBindingMatrixSymmetry", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)))
 //        .then(runTest("TdsClientError", () -> new TdsClientError().runSql(pool)))
 //        .then(runTest("TdsClientDataTypeNonNumeric", () -> new TdsClientDataTypeNonNumeric().runSql(pool)))
@@ -73,7 +73,7 @@ public class TdsClientTestAll {
 //        .then(runTest("TdsClientFilter", () -> new TdsClientFilter().runSql(pool)))
 //        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
 //        .then(runTest("TdsClientLob", () -> new TdsClientLob().runSql(pool)))
-//        .then(runTest("TdsClientOrderSyncLob", () -> new TdsClientOrderSyncLob().runSql(pool)))
+//        .then(runTest("TdsClientLobOrderSync", () -> new TdsClientLobOrderSync().runSql(pool)))
 //        .then(runTest("TdsClientOrderSync", () -> new TdsClientOrderSync().runSql(pool)))
 //
 //        .then(runTest("TdsClientSelectOne", () -> new TdsClientSelectOne().runSql(pool)))
@@ -105,7 +105,7 @@ private Mono<Void> executeAllTests(ConnectionPool pool) {
       runTest("CONCURRENT: Filter Logic", () -> new TdsClientFilter().runSql(pool)),
       runTest("CONCURRENT: Binding Matrix", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)),
       runTest("CONCURRENT: Non-Numeric Matrix", () -> new TdsClientDataTypeNonNumeric().runSql(pool)),
-      runTest("CONCURRENT: AllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool))
+      runTest("CONCURRENT: AllDataTypes", () -> new TdsClientDataTypeAll().runSql(pool))
   );
 }
 //  private Mono<Void> executeAllTests(ConnectionPool pool) {

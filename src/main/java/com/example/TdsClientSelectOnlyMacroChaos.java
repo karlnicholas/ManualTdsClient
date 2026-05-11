@@ -21,9 +21,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientMacroChaos {
+public class TdsClientSelectOnlyMacroChaos {
 
-  private static final Logger logger = LoggerFactory.getLogger(TdsClientMacroChaos.class);
+  private static final Logger logger = LoggerFactory.getLogger(TdsClientSelectOnlyMacroChaos.class);
 
   // THE MACRO QUERY: Generates 100,000 rows to span multiple TCP packets
   private static final String querySql = """
@@ -34,7 +34,7 @@ public class TdsClientMacroChaos {
     """;
 
   public static void main(String[] args) {
-    new TdsClientMacroChaos().run();
+    new TdsClientSelectOnlyMacroChaos().run();
   }
 
   private void run() {

@@ -20,9 +20,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientEssentialMisbehavior {
+public class TdsClientSelectOnlyMisbehavior {
   public static void main(String[] args) {
-    new TdsClientEssentialMisbehavior().run();
+    new TdsClientSelectOnlyMisbehavior().run();
   }
 
   private void run() {

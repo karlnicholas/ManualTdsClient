@@ -20,9 +20,9 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientOrderSyncLob {
+public class TdsClientLobOrderSync {
   public static void main(String[] args) {
-    new TdsClientOrderSyncLob().run();
+    new TdsClientLobOrderSync().run();
   }
 
   private void run() {

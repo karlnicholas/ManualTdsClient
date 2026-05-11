@@ -68,7 +68,7 @@ public class TdsTestAllSave {
 //    return runTest("TdsClientEssential (Primary Setup)", () -> new TdsClientEssential().runSql(pool, traceId))
 //
 //        // 2. Execute the rest sequentially, passing the shared pool to each
-//        .then(runTest("TdsClientAllDataTypes", () -> new TdsClientAllDataTypes().runSql(pool)))
+//        .then(runTest("TdsClientDataTypeAll", () -> new TdsClientDataTypeAll().runSql(pool)))
 //        .then(runTest("TdsClientDataTypeBindingMatrixSymmetry", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)))
 //        .then(runTest("TdsClientError", () -> new TdsClientError().runSql(pool)))
 //        .then(runTest("TdsClientDataTypeNonNumeric", () -> new TdsClientDataTypeNonNumeric().runSql(pool)))
@@ -76,7 +76,7 @@ public class TdsTestAllSave {
 //        .then(runTest("TdsClientFilter", () -> new TdsClientFilter().runSql(pool)))
 //        .then(runTest("TdsClientLobBug", () -> new TdsClientLobBug().runSql(pool)))
 ////        .then(runTest("TdsClientLob", () -> new TdsClientLob().runSql(pool)))
-//        .then(runTest("TdsClientOrderSyncLob", () -> new TdsClientOrderSyncLob().runSql(pool)))
+//        .then(runTest("TdsClientLobOrderSync", () -> new TdsClientLobOrderSync().runSql(pool)))
 //        .then(runTest("TdsClientOrderSync", () -> new TdsClientOrderSync().runSql(pool)))
 
 //    return Mono.usingWhen(
