@@ -20,10 +20,10 @@ import java.util.function.Function;
 
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
-public class TdsClientStatementAddLobBinding {
+public class TdsClientLobBindingStatementAdd {
 
   public static void main(String[] args) {
-    new TdsClientStatementAddLobBinding().run();
+    new TdsClientLobBindingStatementAdd().run();
   }
 
   private void run() {
