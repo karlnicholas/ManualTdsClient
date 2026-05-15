@@ -4,7 +4,7 @@ import io.r2dbc.pool.*;
 import io.r2dbc.spi.*;
 import org.tdslib.javatdslib.api.*;
 import reactor.core.publisher.*;
-import java.time.Duration;
+
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientFilterExceptions {
@@ -15,10 +15,10 @@ public class TdsClientFilterExceptions {
         .option(DRIVER, "javatdslib").option(HOST, "localhost").option(PORT, 1433)
         .option(USER, "reactnonreact").option(PASSWORD, "reactnonreact").option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build())).initialSize(2).build());
-    Mono.usingWhen(Mono.just(pool), this::runSuite, ConnectionPool::disposeLater).block();
+    Mono.usingWhen(Mono.just(pool), this::runSql, ConnectionPool::disposeLater).block();
   }
 
-  public Mono<Void> runSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(Mono.from(pool.create()),
         conn -> testPredicateThrowsException(conn)
             .then(testBlindSegmentCast(conn))

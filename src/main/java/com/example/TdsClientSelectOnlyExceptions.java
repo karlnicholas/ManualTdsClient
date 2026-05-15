@@ -47,14 +47,14 @@ public class TdsClientSelectOnlyExceptions {
 
     Mono.usingWhen(
             Mono.just(pool),
-            this::runExceptionSuite,
+            this::runSql,
             p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nTests complete. Connection pool closed."))
         )
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed (Connection Dropped): " + t.getMessage()))
         .block();
   }
 
-  public Mono<Void> runExceptionSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),
         connection ->

@@ -55,18 +55,18 @@ public class TdsClientBindSpStress {
     ConnectionPool pool = new ConnectionPool(poolConfiguration);
 
     System.out.println("Connecting to database pool for SP & Stress Testing...");
-    UUID traceId = UUID.randomUUID();
 
     Mono.usingWhen(
             Mono.just(pool),
-            p -> runSql(p, traceId),
+            p -> runSql(p),
             p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nConnection Pool safely closed."))
         )
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
   }
 
-  public Mono<Void> runSql(ConnectionPool pool, UUID traceId) {
+  public Mono<Void> runSql(ConnectionPool pool) {
+    UUID traceId = UUID.randomUUID();
     return Mono.usingWhen(
         Mono.from(pool.create()),
         conn -> runSql(pool, conn, traceId), // Pass both pool and the main connection down

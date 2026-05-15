@@ -10,7 +10,7 @@ import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import java.time.Duration;
+
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientBindMisbehavior {
@@ -21,10 +21,10 @@ public class TdsClientBindMisbehavior {
         .option(DRIVER, "javatdslib").option(HOST, "localhost").option(PORT, 1433)
         .option(USER, "reactnonreact").option(PASSWORD, "reactnonreact").option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build())).initialSize(2).build());
-    Mono.usingWhen(Mono.just(pool), this::runSuite, ConnectionPool::disposeLater).block();
+    Mono.usingWhen(Mono.just(pool), this::runSql, ConnectionPool::disposeLater).block();
   }
 
-  public Mono<Void> runSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(Mono.from(pool.create()),
         conn -> testDoubleSubscriptionOnRpcResult(conn)
             .then(testUnconsumedRpcResult(conn))

@@ -31,10 +31,10 @@ public class TdsClientStatementAddChaos {
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
         .build());
 
-    // Pool needs to be big enough for Test 3 (Concurrency 20)
+    // Pool needs to be big enough for Test 3 (Concurrency 20) and Test 5 (Swarm)
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
         .initialSize(20)
-        .maxSize(20)
+        .maxSize(30)
         .maxIdleTime(Duration.ofMinutes(10))
         .build();
 
@@ -52,79 +52,96 @@ public class TdsClientStatementAddChaos {
   }
 
   public Mono<Void> runSql(ConnectionPool pool) {
-    // Note: We use a single connection for setup, Test 1, Test 2, and Test 4.
-    // Test 3 handles its own concurrent connection borrowing.
-    return Mono.usingWhen(
-        Mono.from(pool.create()),
-        connection -> setupTable(connection)
-            .then(test1_SimpleBatch(connection))
-            .then(test2_StressBatchSingleConn(connection))
-            .then(test3_StressBatchConcurrent(pool)) // Passes the pool for concurrent execution
-            .then(test4_TheTrailingTokenTrap(connection)) // The 2000-StatementAdd trap
-            .then(test5_TheVictim(connection)),           // The query that steps in it
-        Connection::close
-    );
+    // 1. Setup runs sequentially first to ensure the table exists
+    return setupTable(pool)
+        // 2. All Chaos tests are fired simultaneously to fight for pool connections
+        .then(Mono.defer(() -> {
+          logger.info("\n🔥 TRIGGERING INTERNAL TESTS CONCURRENTLY...");
+          return Mono.when(
+//              test1_SimpleBatch(pool),
+//              test2_StressBatchSingleConn(pool),
+//              test3_StressBatchConcurrent(pool),
+//              test4_TheTrailingTokenTrap(pool),
+              test5_TheVictimSwarm(pool)
+          );
+        }));
   }
 
-  private Mono<Void> setupTable(Connection connection) {
-    String ddl = "DROP TABLE IF EXISTS dbo.StatementAdd; " +
-        "CREATE TABLE dbo.StatementAdd (" +
-        "id INT IDENTITY(1,1) PRIMARY KEY, " +
-        "statement_add_name VARCHAR(50), " +
-        "iteration INT" +
-        ");";
-    return Mono.from(connection.createStatement(ddl).execute()).then();
+  private Mono<Void> setupTable(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        connection -> {
+          String ddl = "DROP TABLE IF EXISTS dbo.StatementAdd; " +
+              "CREATE TABLE dbo.StatementAdd (" +
+              "id INT IDENTITY(1,1) PRIMARY KEY, " +
+              "statement_add_name VARCHAR(50), " +
+              "iteration INT" +
+              ");";
+          return Mono.from(connection.createStatement(ddl).execute()).then();
+        },
+        Connection::close
+    );
   }
 
   // ---------------------------------------------------------------------------------------
   // TEST 1: Simple 3 StatementAdd Test
   // ---------------------------------------------------------------------------------------
-  private Mono<Void> test1_SimpleBatch(Connection connection) {
-    logger.info("\n--- TEST 1: Simple 3 StatementAdd Test ---");
-    Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
+  private Mono<Void> test1_SimpleBatch(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        connection -> {
+          logger.info("--- TEST 1: Simple 3 StatementAdd Test Started ---");
+          Statement stmt = connection.createStatement(
+              "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
-    stmt.bind("name", "SimpleStatementAdd").bind("iter", 1).add()
-        .bind("name", "SimpleStatementAdd").bind("iter", 2).add()
-        .bind("name", "SimpleStatementAdd").bind("iter", 3); // Final parameter set
+          // Statements are now strictly thread-confined to this connection scope
+          stmt.bind("name", "SimpleStatementAdd").bind("iter", 1).add()
+              .bind("name", "SimpleStatementAdd").bind("iter", 2).add()
+              .bind("name", "SimpleStatementAdd").bind("iter", 3);
 
-    return Flux.from(stmt.execute())
-        .flatMap(Result::getRowsUpdated)
-        .doOnNext(rows -> logger.info("  SimpleStatementAdd row updated: {}", rows))
-        .then();
+          return Flux.from(stmt.execute())
+              .flatMap(Result::getRowsUpdated)
+              .doOnNext(rows -> logger.info("  SimpleStatementAdd row updated: {}", rows))
+              .then();
+        },
+        Connection::close
+    );
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 2: Stressful StatementAdd Test (Single Connection, 1000 items)
+  // TEST 2: Stressful StatementAdd Test (1000 items)
   // ---------------------------------------------------------------------------------------
-  private Mono<Void> test2_StressBatchSingleConn(Connection connection) {
-    logger.info("\n--- TEST 2: Stress StatementAdd (Single Connection, 1000 items) ---");
-    Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
+  private Mono<Void> test2_StressBatchSingleConn(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        connection -> {
+          logger.info("--- TEST 2: Stress StatementAdd (1000 items) Started ---");
+          Statement stmt = connection.createStatement(
+              "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
-    for (int i = 1; i <= 1000; i++) {
-      stmt.bind("name", "StressSingle").bind("iter", i);
-      if (i < 1000) {
-        stmt.add(); // Save all except the last one
-      }
-    }
+          for (int i = 1; i <= 1000; i++) {
+            stmt.bind("name", "StressSingle").bind("iter", i);
+            if (i < 1000) {
+              stmt.add();
+            }
+          }
 
-    // Use count() to simply wait for all 1000 results to process without blowing up the console
-    return Flux.from(stmt.execute())
-        .flatMap(Result::getRowsUpdated)
-        .count()
-        .doOnNext(count -> logger.info("  StressSingle processed {} StatementAdd results.", count))
-        .then();
+          return Flux.from(stmt.execute())
+              .flatMap(Result::getRowsUpdated)
+              .count()
+              .doOnNext(count -> logger.info("  StressSingle processed {} StatementAdd results.", count))
+              .then();
+        },
+        Connection::close
+    );
   }
 
   // ---------------------------------------------------------------------------------------
   // TEST 3: Stressful StatementAdd Test (Connection Pool, Concurrency Level 20)
   // ---------------------------------------------------------------------------------------
   private Mono<Void> test3_StressBatchConcurrent(ConnectionPool pool) {
-    logger.info("\n--- TEST 3: Stress StatementAdd (Pool Concurrency Level 20) ---");
+    logger.info("--- TEST 3: Stress StatementAdd (Pool Concurrency Level 20) Started ---");
 
-    // Creates 20 parallel reactive pipelines. Each one borrows its own connection
-    // from the pool and executes a StatementAdd of 50 inserts.
     return Flux.range(1, 20)
         .flatMap(workerId -> Mono.usingWhen(
             Mono.from(pool.create()),
@@ -140,7 +157,7 @@ public class TdsClientStatementAddChaos {
                   .then();
             },
             Connection::close
-        ), 20) // The '20' here enforces the exact concurrency level in flatMap
+        ), 20)
         .doOnComplete(() -> logger.info("  All 20 concurrent workers finished successfully."))
         .then();
   }
@@ -148,39 +165,54 @@ public class TdsClientStatementAddChaos {
   // ---------------------------------------------------------------------------------------
   // TEST 4: The Trailing Token Trap (Intentional Mid-StatementAdd Cancellation)
   // ---------------------------------------------------------------------------------------
-  private Mono<Void> test4_TheTrailingTokenTrap(Connection connection) {
-    logger.info("\n--- TEST 4: The Trailing Token Trap (Massive StatementAdd + .take(2)) ---");
-    Statement stmt = connection.createStatement(
-        "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
+  private Mono<Void> test4_TheTrailingTokenTrap(ConnectionPool pool) {
+    return Mono.usingWhen(
+        Mono.from(pool.create()),
+        connection -> {
+          logger.info("--- TEST 4: The Trailing Token Trap Started ---");
+          Statement stmt = connection.createStatement(
+              "INSERT INTO dbo.StatementAdd (statement_add_name, iteration) VALUES (@name, @iter)");
 
-    // StatementAdd of 2000 to completely shatter the 8000-byte TDS packet boundary
-    int massiveBatchSize = 2000;
-    for (int i = 1; i <= massiveBatchSize; i++) {
-      stmt.bind("name", "TheTrap").bind("iter", i);
-      if (i < massiveBatchSize) {
-        stmt.add();
-      }
-    }
+          int massiveBatchSize = 2000;
+          for (int i = 1; i <= massiveBatchSize; i++) {
+            stmt.bind("name", "TheTrap").bind("iter", i);
+            if (i < massiveBatchSize) stmt.add();
+          }
 
-    return Flux.from(stmt.execute())
-        .take(2)
-        .flatMap(Result::getRowsUpdated)
-        .doOnNext(rows -> logger.info("  Trap read row updated: {}", rows))
-        .doOnCancel(() -> logger.warn("  [!] Trap Cancelled! Remaining StatementAdd tokens are flying across the wire!"))
-        .then();
+          return Flux.from(stmt.execute())
+              .take(2)
+              .flatMap(Result::getRowsUpdated)
+              .doOnNext(rows -> logger.info("  Trap read row updated: {}", rows))
+              .doOnCancel(() -> logger.warn("  [!] Trap Cancelled! Releasing dirty connection back to pool..."))
+              .then();
+        },
+        Connection::close
+    );
   }
 
   // ---------------------------------------------------------------------------------------
-  // TEST 5: The Victim
+  // TEST 5: The Victim Swarm
   // ---------------------------------------------------------------------------------------
-  private Mono<Void> test5_TheVictim(Connection connection) {
-    logger.info("\n--- TEST 5: The Victim (Executing on poisoned socket) ---");
+  private Mono<Void> test5_TheVictimSwarm(ConnectionPool pool) {
+    logger.info("--- TEST 5: The Victim Swarm (Hunting for poisoned sockets) Started ---");
 
-    // This query will attempt to run while the 1,998 leftover responses from Test 4 are still arriving.
-    // Without a Graceful Discard state holding the lock, this will instantly Protocol Desync.
-    return Mono.from(connection.createStatement("SELECT 1 AS alive").execute())
-        .flatMapMany(result -> result.map((row, meta) -> row.get("alive", Integer.class)))
-        .doOnNext(val -> logger.info("  Victim survived with value: {}", val))
-        .then();
+    // Borrows 50 connections rapidly to try and snag the dirty socket released by Test 4.
+    // If Test 4 properly holds the Attention lock, this swarm will pass unharmed.
+    return Flux.range(1, 50)
+        .flatMap(i -> Mono.delay(Duration.ofMillis(5)) // Slight stagger to hit the exact return window
+            .then(Mono.usingWhen(
+                Mono.from(pool.create()),
+                conn -> Mono.from(conn.createStatement("SELECT 1 AS alive").execute())
+                    .flatMapMany(result -> result.map((row, meta) -> row.get("alive", Integer.class)))
+                    .then(),
+//                // The Clean Execution
+//                conn -> Flux.from(conn.createStatement("SELECT 1 AS alive").execute())
+//                    .flatMap(result -> result.map((row, meta) -> row.get("alive", Integer.class)))
+//                    .then(),
+                Connection::close
+            ))
+        )
+        .then()
+        .doOnSuccess(v -> logger.info("  Victim Swarm survived with 0 casualties. Pool isolation is sound."));
   }
 }

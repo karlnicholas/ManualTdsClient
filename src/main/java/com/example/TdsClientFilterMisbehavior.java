@@ -7,7 +7,6 @@ import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
-import org.reactivestreams.Publisher;
 import org.tdslib.javatdslib.api.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,10 +29,10 @@ public class TdsClientFilterMisbehavior {
     ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(connectionFactory)
         .initialSize(2).maxSize(10).maxIdleTime(Duration.ofMinutes(10)).build());
 
-    Mono.usingWhen(Mono.just(pool), this::runSuite, p -> p.disposeLater()).block();
+    Mono.usingWhen(Mono.just(pool), this::runSql, p -> p.disposeLater()).block();
   }
 
-  public Mono<Void> runSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),
         connection -> testDoubleSubscriptionOnFilteredResult(connection)

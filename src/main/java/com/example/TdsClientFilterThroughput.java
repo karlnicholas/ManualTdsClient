@@ -4,7 +4,7 @@ import io.r2dbc.pool.*;
 import io.r2dbc.spi.*;
 import org.tdslib.javatdslib.api.*;
 import reactor.core.publisher.*;
-import java.time.Duration;
+
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientFilterThroughput {
@@ -15,10 +15,10 @@ public class TdsClientFilterThroughput {
         .option(DRIVER, "javatdslib").option(HOST, "localhost").option(PORT, 1433)
         .option(USER, "reactnonreact").option(PASSWORD, "reactnonreact").option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build())).initialSize(10).maxSize(10).build());
-    Mono.usingWhen(Mono.just(pool), this::runSuite, ConnectionPool::disposeLater).block();
+    Mono.usingWhen(Mono.just(pool), this::runSql, ConnectionPool::disposeLater).block();
   }
 
-  public Mono<Void> runSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return testMassiveRejectionRate(pool)
         .then(testConcurrentFiltering(pool));
   }

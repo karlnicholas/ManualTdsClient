@@ -40,12 +40,12 @@ public class TdsClientBindChar {
 
     System.out.println("Connecting to database pool for Standard Parameter Egress Testing...");
 
-    Mono.usingWhen(Mono.just(pool), this::runSuite, ConnectionPool::disposeLater)
+    Mono.usingWhen(Mono.just(pool), this::runSql, ConnectionPool::disposeLater)
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
         .block();
   }
 
-  public Mono<Void> runSuite(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.defer(() -> testImplicitStringBinding(pool))
         .then(Mono.defer(() -> testExplicitStringBinding(pool)))
         .then(Mono.defer(() -> testImplicitCharArrayBinding(pool)))

@@ -44,12 +44,12 @@ public class TdsClientLobBindingStatementAdd {
 
     Mono.usingWhen(
         Mono.just(pool),
-        this::runBatchTest,
+        this::runSql,
         p -> p.disposeLater()
     ).block();
   }
 
-  private Mono<Void> runBatchTest(ConnectionPool pool) {
+  public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.usingWhen(
         Mono.from(pool.create()),
         connection -> {
