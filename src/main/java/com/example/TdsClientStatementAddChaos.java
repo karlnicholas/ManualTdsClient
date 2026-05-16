@@ -58,11 +58,13 @@ public class TdsClientStatementAddChaos {
         .then(Mono.defer(() -> {
           logger.info("\n🔥 TRIGGERING INTERNAL TESTS CONCURRENTLY...");
           return Mono.when(
-//              test1_SimpleBatch(pool),
-//              test2_StressBatchSingleConn(pool),
-//              test3_StressBatchConcurrent(pool),
-//              test4_TheTrailingTokenTrap(pool),
-              test5_TheVictimSwarm(pool)
+              test1_SimpleBatch(pool),
+              test2_StressBatchSingleConn(pool),
+              test3_StressBatchConcurrent(pool),
+              test4_TheTrailingTokenTrap(pool),
+              test5_TheVictimSwarm(pool),
+              testDirectCrash(pool),
+              testParserCrash(pool)
           );
         }));
   }
@@ -214,5 +216,82 @@ public class TdsClientStatementAddChaos {
         )
         .then()
         .doOnSuccess(v -> logger.info("  Victim Swarm survived with 0 casualties. Pool isolation is sound."));
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // TEST: The Direct Crash (No Pool, No Concurrency)
+  // ---------------------------------------------------------------------------------------
+  private Mono<Void> testDirectCrash(ConnectionFactory connectionFactory) {
+    System.out.println("\n--- TEST: The Direct Crash Started ---");
+
+    // 1. Open exactly ONE connection directly (bypassing the pool entirely)
+    return Mono.from(connectionFactory.create())
+        .flatMap(conn -> {
+
+          System.out.println("  -> Step 1: Running massive query and forcing an early cancel...");
+
+          // Toned down: 100,000 rows is ~3MB of data. Enough to force mid-stream fragmentation,
+          // but small enough to trace cleanly.
+          return Mono.from(conn.createStatement(
+                  "SELECT TOP 100000 a.name FROM master.dbo.spt_values a CROSS JOIN master.dbo.spt_values b"
+              ).execute())
+              .flatMapMany(result -> result.map((row, meta) -> {
+                String val = row.get(0, String.class);
+                return val == null ? "DB_NULL" : val; // Guard against Reactor NPE
+              }))
+              // Grab the first 100 rows just to ensure the pipeline is heavily saturated
+              .take(100)
+              .count()
+              .doOnNext(c -> System.out.println("  -> Grabbed " + c + " rows, firing cancel NOW..."))
+
+              // 2. Wait 50ms for the server to send the DONE_ATTN bytes back
+              .then(Mono.delay(Duration.ofMillis(50)))
+
+              // 3. Run a second query on the EXACT SAME connection object
+              .then(Mono.defer(() -> {
+                System.out.println("  -> Step 2: Running SELECT 2 on the same connection...");
+                return Flux.from(conn.createStatement("SELECT 2 AS alive").execute())
+                    .flatMap(result -> result.map((row, meta) -> row.get("alive", Integer.class)))
+                    .doOnNext(alive -> System.out.println("  -> Step 2 SUCCESS! Server returned: " + alive))
+                    .then();
+              }))
+
+              // 4. Clean up
+              .doFinally(signal -> Mono.from(conn.close()).subscribe());
+        })
+        .doOnError(e -> System.err.println("💥 CRASHED EXACTLY AS EXPECTED: " + e.getMessage()))
+        .then();
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // TEST: The Parser Crash (No Cancel, Full Consumption)
+  // ---------------------------------------------------------------------------------------
+  private Mono<Void> testParserCrash(ConnectionFactory connectionFactory) {
+    System.out.println("\n--- TEST: The Parser Crash Started ---");
+
+    return Mono.from(connectionFactory.create())
+        .flatMap(conn -> {
+
+          System.out.println("  -> Step 1: Running massive query and consuming ALL rows...");
+          return Mono.from(conn.createStatement("SELECT * FROM master.dbo.spt_values").execute())
+              .flatMapMany(result -> result.map((row, meta) -> {
+                Object val = row.get(0, Object.class);
+                return val == null ? "DB_NULL" : val;
+              }))
+
+              // THE CHANGE: Consume every row to completion instead of cancelling
+              .count()
+              .doOnNext(count -> System.out.println("  -> Successfully parsed " + count + " rows."))
+
+              .then(Mono.defer(() -> {
+                System.out.println("  -> Step 2: Running SELECT 2 on the same connection...");
+                return Flux.from(conn.createStatement("SELECT 2 AS alive").execute())
+                    .flatMap(result -> result.map((row, meta) -> row.get("alive", Integer.class)))
+                    .then();
+              }))
+              .doFinally(signal -> Mono.from(conn.close()).subscribe());
+        })
+        .doOnError(e -> System.err.println("💥 CRASHED EXACTLY AS EXPECTED: " + e.getMessage()))
+        .then();
   }
 }

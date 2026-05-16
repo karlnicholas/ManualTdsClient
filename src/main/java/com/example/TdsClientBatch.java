@@ -148,10 +148,11 @@ public class TdsClientBatch {
           return executeExpectedErrorStream("6. Partial Failure Batch Test", errorBatch.execute(), Result::getRowsUpdated);
         }))
 
+        // --- Update 1: Step 7 in runSql ---
         .then(Mono.defer(() -> {
           System.out.println("\n--- Executing: 7. Connection Validation ---");
-          // ValidationDepth.REMOTE forces a network trip to ensure the server still accepts queries on this connection
-          return Mono.from(connection.validate(ValidationDepth.REMOTE))
+          // Use Flux.from() to prevent Mono.from() from sending an aggressive cancel signal
+          return Flux.from(connection.validate(ValidationDepth.REMOTE))
               .doOnNext(isValid -> {
                 if (isValid) {
                   System.out.println("  -> SUCCESS: Connection is healthy and ready for the pool.");
@@ -159,11 +160,11 @@ public class TdsClientBatch {
                   System.err.println("  -> FAILED: Connection is dead or out of sync.");
                 }
               })
-              // FIXED: Replaced doOnComplete with doOnSuccess for Mono compatibility
-              .doOnSuccess(v -> System.out.println("--- Completed: 7. Connection Validation ---"))
+              .doOnComplete(() -> System.out.println("--- Completed: 7. Connection Validation ---"))
               .then();
         }))
-
+        // Inside runSql, add this right after Step 7
+        .then(Mono.delay(Duration.ofMillis(50)).then())
         .contextWrite(Context.of("trace-id", traceId));
   }
 
@@ -177,19 +178,27 @@ public class TdsClientBatch {
         .then();
   }
 
-  // --- Expected Failure Helper ---
+  // --- Update 2: The Helper Method ---
   private <T> Mono<Void> executeExpectedErrorStream(String stepName, Publisher<? extends Result> resultPublisher, Function<Result, Publisher<T>> extractor) {
+    java.util.concurrent.atomic.AtomicBoolean errorCaught = new java.util.concurrent.atomic.AtomicBoolean(false);
+
     return Flux.from(resultPublisher)
-        .flatMap(extractor)
+        .flatMap(result -> Flux.from(extractor.apply(result))
+            // Catch the error INNER stream so the OUTER resultPublisher is not cancelled
+            .onErrorResume(e -> {
+              System.out.println("  ✓ [Expected Database Error Caught]: " + e.getMessage());
+              errorCaught.set(true);
+              return Mono.empty();
+            })
+        )
         .doOnNext(item -> System.out.println("  -> " + item))
-        .then(Mono.<Void>error(new IllegalStateException("Step '" + stepName + "' was expected to throw an error, but it succeeded!")))
-        .onErrorResume(e -> {
-          if (e instanceof IllegalStateException) {
-            return Mono.error(e);
+        .doOnComplete(() -> System.out.println("--- Completed: " + stepName + " ---"))
+        .then(Mono.defer(() -> {
+          // Evaluate our expectation safely after the stream naturally completes
+          if (!errorCaught.get()) {
+            return Mono.error(new IllegalStateException("Step '" + stepName + "' was expected to throw an error, but it succeeded!"));
           }
-          System.out.println("  ✓ [Expected Database Error Caught]: " + e.getMessage());
-          System.out.println("--- Completed: " + stepName + " ---");
           return Mono.empty();
-        });
+        }));
   }
 }

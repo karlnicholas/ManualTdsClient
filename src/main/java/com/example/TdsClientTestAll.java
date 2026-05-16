@@ -70,13 +70,13 @@ public class TdsClientTestAll {
 
     // --- GROUP 1: ESSENTIAL ---
     Mono<Void> essentialGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟩 STARTING GROUP: ESSENTIAL 🟩");
+      System.out.println("\n\n🟩 STARTING GROUP: ESSENTIAL 🟩");
       return runTest("TdsClientEssential", () -> new TdsClientEssential().runSql(pool, traceId));
     });
 
     // --- GROUP 2: BATCH ---
     Mono<Void> batchGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟦 STARTING GROUP: BATCH 🟦");
+      System.out.println("\n\n🟦 STARTING GROUP: BATCH 🟦");
       return Mono.when(
           runTest("Batch", () -> new TdsClientBatch().runSql(pool, traceId)),
           runTest("BatchExceptions", () -> new TdsClientBatchExceptions().runSql(pool, traceId)),
@@ -87,7 +87,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 3: BIND ---
     Mono<Void> bindGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟪 STARTING GROUP: BIND 🟪");
+      System.out.println("\n\n🟪 STARTING GROUP: BIND 🟪");
       return Mono.when(
           runTest("BindChaos", () -> new TdsClientBindChaos().runSql(pool)),
           runTest("BindChar", () -> new TdsClientBindChar().runSql(pool)),
@@ -102,7 +102,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 4: DATATYPE ---
     Mono<Void> dataTypeGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟨 STARTING GROUP: DATATYPE 🟨");
+      System.out.println("\n\n🟨 STARTING GROUP: DATATYPE 🟨");
       return Mono.when(
           runTest("DataTypeAll", () -> new TdsClientDataTypeAll().runSql(pool)),
           runTest("DataTypeBindingMatrixSymmetry", () -> new TdsClientDataTypeBindingMatrixSymmetry().runSql(pool)),
@@ -113,19 +113,19 @@ public class TdsClientTestAll {
 
     // --- GROUP 5: FILTER ---
     Mono<Void> filterGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟧 STARTING GROUP: FILTER 🟧");
+      System.out.println("\n\n🟧 STARTING GROUP: FILTER 🟧");
       return Mono.when(
           runTest("Filter", () -> new TdsClientFilter().runSql(pool)),
           runTest("FilterChaos", () -> new TdsClientFilterChaos().runSql(pool)),
           runTest("FilterExceptions", () -> new TdsClientFilterExceptions().runSql(pool)),
-//          runTest("FilterMisbehavior", () -> new TdsClientFilterMisbehavior().runSql(pool)),
+          runTest("FilterMisbehavior", () -> new TdsClientFilterMisbehavior().runSql(pool)),
           runTest("FilterThroughput", () -> new TdsClientFilterThroughput().runSql(pool))
       );
     });
 
     // --- GROUP 6: LOB ---
     Mono<Void> lobGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟥 STARTING GROUP: LOB 🟥");
+      System.out.println("\n\n🟥 STARTING GROUP: LOB 🟥");
       return Mono.when(
           runTest("LobBinding", () -> new TdsClientLobBinding().runSql(pool)),
           runTest("LobBindingStatementAdd", () -> new TdsClientLobBindingStatementAdd().runSql(pool)),
@@ -137,7 +137,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 7: ORDER ---
     Mono<Void> orderGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟫 STARTING GROUP: ORDER 🟫");
+      System.out.println("\n\n🟫 STARTING GROUP: ORDER 🟫");
       return Mono.when(
           runTest("Order", () -> new TdsClientOrder().runSql(pool)),
           runTest("OrderSync", () -> new TdsClientOrderSync().runSql(pool))
@@ -146,7 +146,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 8: RANDOM ---
     Mono<Void> randomGroup = Mono.defer(() -> {
-//      System.out.println("\n\n⬛ STARTING GROUP: RANDOM ⬛");
+      System.out.println("\n\n⬛ STARTING GROUP: RANDOM ⬛");
       return Mono.when(
           runTest("RandomBaseline", () -> new TdsClientRandomBaseline().runSql(pool)),
           runTest("RandomPool", () -> new TdsClientRandomPool().runSql(pool)),
@@ -156,7 +156,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 9: SELECT ONLY ---
     Mono<Void> selectOnlyGroup = Mono.defer(() -> {
-//      System.out.println("\n\n⬜ STARTING GROUP: SELECT ONLY ⬜");
+      System.out.println("\n\n⬜ STARTING GROUP: SELECT ONLY ⬜");
       return Mono.when(
           runTest("SelectOnlyChaos", () -> new TdsClientSelectOnlyChaos().runSql(pool)),
           runTest("SelectOnlyExceptions", () -> new TdsClientSelectOnlyExceptions().runSql(pool)),
@@ -168,7 +168,7 @@ public class TdsClientTestAll {
 
     // --- GROUP 10: TRANSACTION ---
     Mono<Void> transactionGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟩 STARTING GROUP: TRANSACTION 🟩");
+      System.out.println("\n\n🟩 STARTING GROUP: TRANSACTION 🟩");
       return Mono.when(
           runTest("Transaction", () -> new TdsClientTransaction().runSql(pool)),
           runTest("TransactionExceptions", () -> new TdsClientTransactionExceptions().runSql(pool)),
@@ -180,13 +180,13 @@ public class TdsClientTestAll {
 
     // --- GROUP 11: MISC/ORPHANS ---
     Mono<Void> miscGroup = Mono.defer(() -> {
-//      System.out.println("\n\n🟦 STARTING GROUP: MISC/ORPHANS 🟦");
+      System.out.println("\n\n🟦 STARTING GROUP: MISC/ORPHANS 🟦");
       return Mono.when(
           runTest("SqlChaos", () -> new TdsClientSqlChaos().runSql(pool)),
           runTest("StatementAddChaos", () -> new TdsClientStatementAddChaos().runSql(pool)),
-          runTest("TestOutParams", () -> new TdsClientTestOutParams().runSql(pool))
-//          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
-//          runTest("XmlStream", () -> new TdsClientXmlStream().runSql(pool))
+          runTest("TestOutParams", () -> new TdsClientTestOutParams().runSql(pool)),
+          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
+          runTest("XmlStream", () -> new TdsClientXmlStream().runSql(pool))
       );
     });
 
