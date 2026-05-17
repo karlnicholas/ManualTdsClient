@@ -192,18 +192,17 @@ public class TdsClientTestAll {
 
     // Execute the groups sequentially
     return
-        miscGroup
-//        essentialGroup
-//        .then(batchGroup)
-//        .then(bindGroup)
-//        .then(dataTypeGroup)
-//        .then(filterGroup)
-//        .then(lobGroup)
-//        .then(orderGroup)
-//        .then(randomGroup)
-//        .then(selectOnlyGroup)
-//        .then(transactionGroup)
-//        .then(miscGroup)
+        essentialGroup
+        .then(batchGroup)
+        .then(bindGroup)
+        .then(dataTypeGroup)
+        .then(filterGroup)
+        .then(lobGroup)
+        .then(orderGroup)
+        .then(randomGroup)
+        .then(selectOnlyGroup)
+        .then(transactionGroup)
+        .then(miscGroup)
         ;
   }
 

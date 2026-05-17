@@ -91,7 +91,7 @@ public class TdsClientLobBinding {
 
     return Mono.defer(() -> executeStream("1. Setup LOB Table", connection.createStatement(createTableSql).execute(), Result::getRowsUpdated))
 
-        // --- CLOB TESTS ---
+//         --- CLOB TESTS ---
         .then(Mono.defer(() -> {
           Statement stmt = connection.createStatement(insertTextSql)
               .bind("@id", 1)
@@ -163,7 +163,8 @@ public class TdsClientLobBinding {
 
                 return String.format("Row %d: Text=[%s] | Binary=[%s]", id, text, binInfo);
               }));
-        }));
+        }))
+        ;
   }
 
   /**
