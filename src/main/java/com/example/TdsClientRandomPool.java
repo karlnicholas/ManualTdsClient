@@ -8,7 +8,7 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.api.TdsLibOptions;
+import org.tdslib.javatdslib.TdsLibOptions;
 import org.tdslib.javatdslib.impl.TdsConnection;
 import org.tdslib.javatdslib.transport.TdsTransport;
 import reactor.core.publisher.Flux;

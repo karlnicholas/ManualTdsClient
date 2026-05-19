@@ -3,7 +3,7 @@ package com.example;
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.*;
-import org.tdslib.javatdslib.api.TdsLibOptions;
+import org.tdslib.javatdslib.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

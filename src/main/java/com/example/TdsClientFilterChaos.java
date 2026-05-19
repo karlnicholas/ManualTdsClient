@@ -2,7 +2,7 @@ package com.example;
 
 import io.r2dbc.pool.*;
 import io.r2dbc.spi.*;
-import org.tdslib.javatdslib.api.*;
+import org.tdslib.javatdslib.*;
 import reactor.core.publisher.*;
 import java.time.Duration;
 import static io.r2dbc.spi.ConnectionFactoryOptions.*;
