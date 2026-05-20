@@ -25,6 +25,6 @@
         <appender-ref ref="FILE" />
     </root>
 
-    <logger name="org.tdslib.javatdslib" level="DEBUG" />
+    <logger name="org.tdslib.javatdslib" level="TRACE" />
 
 </configuration>
