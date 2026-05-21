@@ -14,7 +14,7 @@ import io.r2dbc.spi.Result.RowSegment;
 import io.r2dbc.spi.Result.Segment;
 import io.r2dbc.spi.Result.UpdateCount;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.TdsLibOptions;
+import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -38,7 +38,7 @@ public class TdsClientFilter {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")

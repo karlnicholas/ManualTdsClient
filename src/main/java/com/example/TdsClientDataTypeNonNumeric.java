@@ -3,7 +3,7 @@ package com.example;
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.*;
-import org.tdslib.javatdslib.TdsLibOptions;
+import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,7 +22,7 @@ public class TdsClientDataTypeNonNumeric {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")

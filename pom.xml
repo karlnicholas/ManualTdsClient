@@ -17,8 +17,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.tdslib.javatdslib</groupId>
-            <artifactId>javatdslib</artifactId>
+            <groupId>org.tdslib.r2dbc.mssql</groupId>
+            <artifactId>r2dbc-mssql</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 <!--        <dependency>-->

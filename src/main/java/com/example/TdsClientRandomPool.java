@@ -8,9 +8,9 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.TdsLibOptions;
-import org.tdslib.javatdslib.impl.TdsConnection;
-import org.tdslib.javatdslib.transport.TdsTransport;
+import org.tdslib.r2dbc.mssql.TdsLibOptions;
+import org.tdslib.r2dbc.mssql.impl.TdsConnection;
+import org.tdslib.r2dbc.mssql.transport.TdsTransport;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -34,7 +34,7 @@ public class TdsClientRandomPool {
 
   private void run() {
     ConnectionFactory baseConnectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")

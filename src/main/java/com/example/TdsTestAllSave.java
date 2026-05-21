@@ -5,8 +5,8 @@ import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import org.tdslib.javatdslib.TdsLibOptions;
-import org.tdslib.javatdslib.impl.TdsConnection;
+import org.tdslib.r2dbc.mssql.TdsLibOptions;
+import org.tdslib.r2dbc.mssql.impl.TdsConnection;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +29,7 @@ public class TdsTestAllSave {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")

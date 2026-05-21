@@ -8,7 +8,7 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.javatdslib.TdsLibOptions;
+import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -32,7 +32,7 @@ public class TdsClientRandomBaseline {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "javatdslib")
+        .option(ConnectionFactoryOptions.DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")
@@ -181,7 +181,7 @@ public class TdsClientRandomBaseline {
         .doOnError(error -> {
           System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
           // SPRING THE TRAP: Now 'query' is available to use as the map key
-//          System.err.println("   => DRIVER STATE: " + org.tdslib.javatdslib.transport.TdsTransport.queryStates.get(query));
+//          System.err.println("   => DRIVER STATE: " + org.tdslib.r2dbc.mssql.transport.TdsTransport.queryStates.get(query));
         })
         .then();
   }
