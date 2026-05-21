@@ -48,7 +48,7 @@ public class TdsClientLobExtraction {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "javatdslib")
+        .option(DRIVER, "mssql")
         .option(HOST, "localhost")
         .option(PORT, 1433)
         .option(PASSWORD, "reactnonreact")

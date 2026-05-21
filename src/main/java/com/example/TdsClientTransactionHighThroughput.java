@@ -26,7 +26,7 @@ public class TdsClientTransactionHighThroughput {
 
   private void run() {
     ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "javatdslib").option(HOST, "localhost").option(PORT, 1433)
+        .option(DRIVER, "mssql").option(HOST, "localhost").option(PORT, 1433)
         .option(PASSWORD, "reactnonreact").option(USER, "reactnonreact").option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build());
 

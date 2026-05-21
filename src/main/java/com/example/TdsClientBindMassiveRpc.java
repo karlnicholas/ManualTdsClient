@@ -25,7 +25,7 @@ public class TdsClientBindMassiveRpc {
 
   private void run() {
     ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "javatdslib").option(HOST, "localhost").option(PORT, 1433)
+        .option(DRIVER, "mssql").option(HOST, "localhost").option(PORT, 1433)
         .option(USER, "reactnonreact").option(PASSWORD, "reactnonreact").option(DATABASE, "reactnonreact")
         .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build())).initialSize(10).maxSize(10).build());
 
