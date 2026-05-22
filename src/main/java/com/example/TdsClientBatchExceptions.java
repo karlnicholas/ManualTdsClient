@@ -9,7 +9,6 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import io.r2dbc.spi.ValidationDepth;
 import org.reactivestreams.Publisher;
-import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
@@ -31,15 +30,10 @@ public class TdsClientBatchExceptions {
   }
 
   private void run() {
-    ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "mssql")
-        .option(HOST, "localhost")
-        .option(PORT, 1433)
-        .option(PASSWORD, "reactnonreact")
-        .option(USER, "reactnonreact")
-        .option(DATABASE, "reactnonreact")
-        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
-        .build());
+    String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
+
+    // 2. Pass it directly to the factory
+    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
 
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
         .initialSize(2)

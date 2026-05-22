@@ -6,7 +6,6 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Statement;
-import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,10 +23,8 @@ public class TdsClientBindMassiveRpc {
   }
 
   private void run() {
-    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "mssql").option(HOST, "localhost").option(PORT, 1433)
-        .option(USER, "reactnonreact").option(PASSWORD, "reactnonreact").option(DATABASE, "reactnonreact")
-        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true).build())).initialSize(10).maxSize(10).build());
+    String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(10).maxSize(10).build());
 
     System.out.println("Connecting to database pool for Massive RPC Framework Testing...");
 

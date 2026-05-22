@@ -8,9 +8,6 @@ import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import org.reactivestreams.Publisher;
-import org.tdslib.r2dbc.mssql.TdsLibOptions;
-import org.tdslib.r2dbc.mssql.impl.TdsConnection;
-import org.tdslib.r2dbc.mssql.transport.TdsTransport;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -33,15 +30,11 @@ public class TdsClientRandomPool {
   }
 
   private void run() {
-    ConnectionFactory baseConnectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(ConnectionFactoryOptions.DRIVER, "mssql")
-        .option(HOST, "localhost")
-        .option(PORT, 1433)
-        .option(PASSWORD, "reactnonreact")
-        .option(USER, "reactnonreact")
-        .option(DATABASE, "reactnonreact")
-        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
-        .build());
+
+    String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
+
+    // 2. Pass it directly to the factory
+    ConnectionFactory baseConnectionFactory = ConnectionFactories.get(r2dbcUrl);
 
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(baseConnectionFactory)
         .initialSize(10)
@@ -186,23 +179,6 @@ public class TdsClientRandomPool {
         }))
         .doOnNext(item -> {})
         .timeout(Duration.ofSeconds(30))
-        .doOnError(error -> {
-          System.err.println("[" + stepName + "] CRASHED: " + error.getMessage());
-          // SPRING THE TRAP: Now 'query' is available to use as the map key
-          // 1. Check if the connection is a wrapper (e.g., from a pool)
-          TdsConnection nativeConnection;
-          if (connection instanceof io.r2dbc.spi.Wrapped<?> wrapped) {
-            // 2. Unwrap it and cast the raw inner object
-            nativeConnection = (TdsConnection) wrapped.unwrap();
-          } else {
-            // 3. Fallback if you are ever running without the pool
-            nativeConnection = (TdsConnection) connection;
-          }
-
-// Now you can grab the SPID for your error log
-
-          System.err.println("   => QUERY STATE: " + nativeConnection.getTransport().debuggingInformation);
-        })
         .then();
   }
 }

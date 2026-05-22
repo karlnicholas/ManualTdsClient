@@ -20,34 +20,24 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
 import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
 import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
-public class TdsClientTestAll {
+public class TdsClientTestAllNoLob {
 
   public static void main(String[] args) {
-    new TdsClientTestAll().run();
+    new TdsClientTestAllNoLob().run();
   }
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
-        .initialSize(5)
-        .maxSize(50)
-        .maxIdleTime(Duration.ofMinutes(10))
-        .build();
-
-    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(10).maxSize(10).build());
 
     System.out.println("Booting Global Connection Pool for TdsClientTestAll Bulk Execution...");
 
     // Manage the global pool lifecycle
     Mono.usingWhen(
             Mono.just(pool),
-            p -> executeAllTests(p)
+            p -> executeAllTests(p),
                 // AUDIT HAPPENS HERE: Inside the closure, after tests, before teardown.
-                .then(Mono.defer(() -> auditPool(p, 50))),
+//                .then(Mono.defer(() -> auditPool(p, 50))),
             p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nAll tests finished. Global Connection Pool safely closed."))
         )
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
@@ -116,17 +106,17 @@ public class TdsClientTestAll {
       );
     });
 
-    // --- GROUP 6: LOB ---
-    Mono<Void> lobGroup = Mono.defer(() -> {
-      System.out.println("\n\n🟥 STARTING GROUP: LOB 🟥");
-      return Mono.when(
-          runTest("LobBinding", () -> new TdsClientLobBinding().runSql(pool)),
-          runTest("LobBindingStatementAdd", () -> new TdsClientLobBindingStatementAdd().runSql(pool)),
-          runTest("LobChaos", () -> new TdsClientLobChaos().runSql(pool)),
-          runTest("LobExtraction", () -> new TdsClientLobExtraction().runSql(pool)),
-          runTest("LobOrderSync", () -> new TdsClientLobOrderSync().runSql(pool))
-      );
-    });
+//    // --- GROUP 6: LOB ---
+//    Mono<Void> lobGroup = Mono.defer(() -> {
+//      System.out.println("\n\n🟥 STARTING GROUP: LOB 🟥");
+//      return Mono.when(
+//          runTest("LobBinding", () -> new TdsClientLobBinding().runSql(pool)),
+//          runTest("LobBindingStatementAdd", () -> new TdsClientLobBindingStatementAdd().runSql(pool)),
+//          runTest("LobChaos", () -> new TdsClientLobChaos().runSql(pool)),
+//          runTest("LobExtraction", () -> new TdsClientLobExtraction().runSql(pool)),
+//          runTest("LobOrderSync", () -> new TdsClientLobOrderSync().runSql(pool))
+//      );
+//    });
 
     // --- GROUP 7: ORDER ---
     Mono<Void> orderGroup = Mono.defer(() -> {
@@ -190,7 +180,7 @@ public class TdsClientTestAll {
         .then(bindGroup)
         .then(dataTypeGroup)
         .then(filterGroup)
-        .then(lobGroup)
+//        .then(lobGroup)
         .then(orderGroup)
         .then(randomGroup)
         .then(selectOnlyGroup)
@@ -210,91 +200,4 @@ public class TdsClientTestAll {
     });
   }
 
-  private Mono<Void> auditPool(ConnectionPool pool, int poolSize) {
-    System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
-    System.out.println("Requesting " + poolSize + " concurrent connections to flush out poisoned sockets...");
-
-//    java.util.concurrent.atomic.AtomicLong grandTotalQueued = new java.util.concurrent.atomic.AtomicLong();
-//    java.util.concurrent.atomic.AtomicLong grandTotalComplete = new java.util.concurrent.atomic.AtomicLong();
-//    java.util.concurrent.atomic.AtomicLong grandTotalError = new java.util.concurrent.atomic.AtomicLong();
-//    java.util.concurrent.atomic.AtomicLong grandTotalCancel = new java.util.concurrent.atomic.AtomicLong();
-//    List<String> finalStates = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-//
-//    return Flux.range(1, poolSize)
-//        .flatMap(i -> Mono.from(pool.create()))
-//        .collectList()
-//        .flatMap(connections -> {
-//          return Flux.fromIterable(connections)
-//              .flatMap(conn -> {
-//                TdsConnection nativeConn;
-//                if (conn instanceof io.r2dbc.spi.Wrapped<?> wrapped) {
-//                  nativeConn = (TdsConnection) wrapped.unwrap();
-//                } else {
-//                  nativeConn = (TdsConnection) conn;
-//                }
-//
-//                return Flux.from(conn.createStatement("SELECT 1").execute())
-//                    .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-//                    .timeout(Duration.ofSeconds(2))
-//                    .doOnError(e -> System.err.println("  [!] HUNG! Timeout reached."))
-//                    .then()
-//                    .doOnSuccess(v -> {
-//                      long queued = nativeConn.getTransport().debuggingInformation.queuedCount.get();
-//                      long complete = nativeConn.getTransport().debuggingInformation.completeCallback.get();
-//                      long error = nativeConn.getTransport().debuggingInformation.errorCallback.get();
-//                      long cancel = nativeConn.getTransport().debuggingInformation.cancelCallback.get();
-//
-//                      grandTotalQueued.addAndGet(queued);
-//                      grandTotalComplete.addAndGet(complete);
-//                      grandTotalError.addAndGet(error);
-//                      grandTotalCancel.addAndGet(cancel);
-//
-//                      finalStates.add(
-//                          "SPID: " + nativeConn.getTransport().getContext().getSpid() +
-//                              nativeConn.getTransport().debuggingInformation.toString()
-//                      );
-//                    })
-//                    .thenReturn(conn);
-//              })
-//              .then()
-//              .then(Flux.fromIterable(connections)
-//                  .flatMap(conn -> Mono.from(conn.close()))
-//                  .then());
-//        })
-//        .doOnSuccess(v -> {
-//          System.out.println("--- Pool Audit Complete ---\n");
-//          finalStates.forEach(state -> System.out.println("GOOD DRIVER STATE: " + state));
-//
-//          long totalQ = grandTotalQueued.get();
-//          long totalC = grandTotalComplete.get();
-//          long totalE = grandTotalError.get();
-//          long totalX = grandTotalCancel.get();
-//          long activePings = finalStates.size();
-//
-//          long accountedFor = totalC + totalE + totalX;
-//
-//          System.out.println("\n========================================================");
-//          System.out.println("📊 FINAL AUDIT SUMMARY");
-//          System.out.println("========================================================");
-//          System.out.println("  Connections Audited:   " + activePings + " / " + poolSize);
-//          System.out.println("  GRAND TOTAL QUERIES:   " + totalQ);
-//          System.out.println("  --------------------------------------------------");
-//          System.out.println("  Driver Completed:      " + totalC);
-//          System.out.println("  Driver Errored:        " + totalE);
-//          System.out.println("  Driver Cancelled:      " + totalX);
-//          System.out.println("  Active Audit Pings:    " + activePings);
-//          System.out.println("  --------------------------------------------------");
-//          System.out.println("  MATH CHECK:            (" + totalC + " + " + totalE + " + " + totalX + " + " + activePings + ") == " + totalQ);
-//
-//          if (totalQ == accountedFor) {
-//            System.out.println("  STATUS:                ✅ PERFECT MATCH (Zero Leaks)");
-//          } else {
-//            System.out.println("  STATUS:                ❌ MISMATCH (Leak Detected)");
-//            System.out.println("  DIFFERENCE:            " + (totalQ - accountedFor) + " queries lost/stuck.");
-//          }
-//          System.out.println("========================================================\n");
-//
-//        });
-    return Mono.empty();
-  }
 }

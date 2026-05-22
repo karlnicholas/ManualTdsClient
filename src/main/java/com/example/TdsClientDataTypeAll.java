@@ -9,7 +9,6 @@ import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Row;
-import org.tdslib.r2dbc.mssql.TdsLibOptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -35,15 +34,10 @@ public class TdsClientDataTypeAll {
   }
 
   private void run() {
-    ConnectionFactory connectionFactory = ConnectionFactories.get(ConnectionFactoryOptions.builder()
-        .option(DRIVER, "mssql")
-        .option(HOST, "localhost")
-        .option(PORT, 1433)
-        .option(USER, "reactnonreact")
-        .option(PASSWORD, "reactnonreact")
-        .option(DATABASE, "reactnonreact")
-        .option(TdsLibOptions.TRUST_SERVER_CERTIFICATE, true)
-        .build());
+    String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
+
+    // 2. Pass it directly to the factory
+    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
 
     // Configure a simple pool for the standalone client execution
     ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
