@@ -33,7 +33,8 @@ public class TdsClientBindChar {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(10).maxSize(10).build());
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+.build());
 
     System.out.println("Connecting to database pool for Standard Parameter Egress Testing...");
 

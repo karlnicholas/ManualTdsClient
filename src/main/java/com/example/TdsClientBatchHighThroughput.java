@@ -31,18 +31,8 @@ public class TdsClientBatchHighThroughput {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-    // Larger pool to handle high concurrency
-    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
-        .initialSize(10)
-        .maxSize(CONCURRENCY_LIMIT)
-        .maxIdleTime(Duration.ofMinutes(10))
-        .build();
-
-    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+.build());
 
     System.out.println("Connecting to database pool for High Throughput Testing...");
 

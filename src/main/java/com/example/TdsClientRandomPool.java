@@ -32,25 +32,15 @@ public class TdsClientRandomPool {
   private void run() {
 
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory baseConnectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(baseConnectionFactory)
-        .initialSize(10)
-        .maxSize(50)
-        .maxIdleTime(Duration.ofMinutes(10))
-        .maxCreateConnectionTime(Duration.ofSeconds(5))
-        .build();
-
-    ConnectionPool connectionPool = new ConnectionPool(poolConfiguration);
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+        .build());
 
     System.out.println("Connecting to database pool for Async Load Testing...");
 
     Mono.usingWhen(
-            Mono.just(connectionPool),
+            Mono.just(pool),
             this::runSql,
-            pool -> pool.disposeLater().doOnSuccess(v -> System.out.println("\nConnection Pool safely closed."))
+            conPool -> conPool.disposeLater().doOnSuccess(v -> System.out.println("\nConnection Pool safely closed."))
         )
         .doOnError(t -> System.err.println("Connection/Run Failed: " + t.getMessage()))
         .block();

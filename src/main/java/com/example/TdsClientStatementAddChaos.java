@@ -21,18 +21,8 @@ public class TdsClientStatementAddChaos {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-    // Pool needs to be big enough for Test 3 (Concurrency 20) and Test 5 (Swarm)
-    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
-        .initialSize(20)
-        .maxSize(30)
-        .maxIdleTime(Duration.ofMinutes(10))
-        .build();
-
-    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+.build());
 
     logger.info("Connecting to pool for StatementAdd Chaos Suite...");
 

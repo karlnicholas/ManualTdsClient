@@ -38,21 +38,8 @@ public class TdsClientSelectOnlyMacroChaos {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-// CRITICAL: Force pool size to 1, AND add a validation query.
-    // The pool will attempt to run "SELECT 1". When it fails on the poisoned
-    // connection, the pool will automatically evict it and create a fresh one!
-    ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder(connectionFactory)
-        .initialSize(1)
-        .maxSize(1)
-        .maxIdleTime(Duration.ofMinutes(10))
-        .validationQuery("SELECT 1") // <--- ADD THIS LINE
-        .build();
-
-    ConnectionPool pool = new ConnectionPool(poolConfiguration);
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+.build());
 
     logger.info("Starting MACRO Chaos Suite (100,000 Row Trap)...");
 

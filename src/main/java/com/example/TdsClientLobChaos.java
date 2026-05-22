@@ -35,12 +35,8 @@ public class TdsClientLobChaos {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-
-    // 2. Pass it directly to the factory
-    ConnectionFactory connectionFactory = ConnectionFactories.get(r2dbcUrl);
-
-    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(connectionFactory)
-        .initialSize(1).maxSize(1).build()); // Force single connection to prove no poisoning
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
+.build());
 
     logger.info("Starting LOB Chaos Suite...");
 
