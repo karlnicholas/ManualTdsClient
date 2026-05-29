@@ -228,6 +228,18 @@ public class TdsClientEssential {
         }))
 
         .then(Mono.defer(() -> {
+          Statement stmt9 = connection.createStatement("UPDATE dbo.AllDataTypes SET test_bit = 1 WHERE id = @id");
+
+          // Omit the '@' in the bind string.
+          // Call .add() BETWEEN bindings, but not on the final one.
+          stmt9.bind("id", 1).add(); // Saves binding 1, prepares binding 2
+          stmt9.bind("id", 2).add(); // Saves binding 2, prepares binding 3
+          stmt9.bind("id", 3);       // Binds 3. NO .add() here!
+
+          return executeStream("9b. Statement Parameter Batching", stmt9.execute(), Result::getRowsUpdated);
+        }))
+
+        .then(Mono.defer(() -> {
           Batch batch = connection.createBatch();
           batchSql.forEach(batch::add);
           return executeStream("10. createBatch() API", batch.execute(), res -> res.map(allDataTypesMapper));
