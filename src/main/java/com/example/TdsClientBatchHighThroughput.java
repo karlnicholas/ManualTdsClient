@@ -69,12 +69,19 @@ public class TdsClientBatchHighThroughput {
   }
 
   private Mono<Void> executeFastQuery(Connection connection, int iteration) {
-    // Alternates between inserts and selects to mix the workload type
-    String sql = (iteration % 2 == 0)
+    boolean isInsert = (iteration % 2 == 0);
+    String sql = isInsert
         ? "INSERT INTO dbo.HighThroughput (val) VALUES (@val)"
         : "SELECT 1 AS tick";
 
-    return Flux.from(connection.createStatement(sql).bind("@val", iteration).execute())
+    io.r2dbc.spi.Statement statement = connection.createStatement(sql);
+
+    // Only bind if the query actually contains the @val parameter
+    if (isInsert) {
+      statement.bind("val", iteration); // Note: It is best practice to omit the '@' prefix in the bind call
+    }
+
+    return Flux.from(statement.execute())
         .flatMap(Result::getRowsUpdated)
         .onErrorResume(e -> {
           System.err.println("Request " + iteration + " failed: " + e.getMessage());

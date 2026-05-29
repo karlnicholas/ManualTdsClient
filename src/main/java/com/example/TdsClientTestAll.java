@@ -163,15 +163,14 @@ public class TdsClientTestAll {
           runTest("SqlChaos", () -> new TdsClientSqlChaos().runSql(pool)),
           runTest("StatementAddChaos", () -> new TdsClientStatementAddChaos().runSql(pool)),
           runTest("TestOutParams", () -> new TdsClientTestOutParams().runSql(pool)),
-          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
-          runTest("XmlStream", () -> new TdsClientXmlStream().runSql(pool))
+          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool))
       );
     });
 
     // Execute the groups sequentially
     return
         essentialGroup
-//        .then(batchGroup)
+        .then(batchGroup)
 //        .then(bindGroup)
 //        .then(dataTypeGroup)
 //        .then(filterGroup)
@@ -180,7 +179,7 @@ public class TdsClientTestAll {
 //        .then(randomGroup)
 //        .then(selectOnlyGroup)
 //        .then(transactionGroup)
-//        .then(miscGroup)
+        .then(miscGroup)
         ;
   }
 

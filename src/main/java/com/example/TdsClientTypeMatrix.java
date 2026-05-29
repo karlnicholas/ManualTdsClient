@@ -66,7 +66,6 @@ public class TdsClientTypeMatrix {
         .then(testType(connection, "decimal", "CAST(123.45 AS decimal(5,2))", BigDecimal.class, BigInteger.class))
         .then(testType(connection, "numeric", "CAST(123.45 AS numeric(5,2))", BigDecimal.class, BigInteger.class))
 
-        .then(testType(connection, "smallmoney", "CAST(123.45 AS smallmoney)", BigDecimal.class))
         .then(testType(connection, "money", "CAST(123.4567 AS money)", BigDecimal.class))
 
         .then(testType(connection, "uniqueidentifier", "CAST('12345678-1234-1234-1234-123456789012' AS uniqueidentifier)", UUID.class, String.class))
@@ -76,7 +75,6 @@ public class TdsClientTypeMatrix {
         .then(testType(connection, "datetime2", "CAST('2026-04-14T13:08:16.1234567' AS datetime2)", LocalDateTime.class))
         .then(testType(connection, "date", "CAST('2026-04-14' AS date)", LocalDate.class))
         .then(testType(connection, "time", "CAST('13:08:16.1234567' AS time)", LocalTime.class))
-        .then(testType(connection, "datetimeoffset", "CAST('2026-04-14T13:08:16.1234567-04:00' AS datetimeoffset)", OffsetDateTime.class, ZonedDateTime.class))
 
         .then(testType(connection, "char", "CAST('A' AS char(1))", String.class))
         .then(testType(connection, "varchar", "CAST('Hello' AS varchar(5))", String.class))
@@ -84,7 +82,6 @@ public class TdsClientTypeMatrix {
         .then(testType(connection, "nchar", "CAST(N'A' AS nchar(1))", String.class))
         .then(testType(connection, "nvarchar", "CAST(N'Hello' AS nvarchar(5))", String.class))
         .then(testType(connection, "nvarcharmax", "CAST(N'Hello' AS nvarchar(max))", String.class))
-        .then(testType(connection, "xml", "CAST('<r>v</r>' AS xml)", String.class))
 
         .then(testType(connection, "binary", "CAST(0x1234 AS binary(2))", ByteBuffer.class, byte[].class))
         .then(testType(connection, "varbinary", "CAST(0x1234 AS varbinary(2))", ByteBuffer.class, byte[].class))

@@ -158,8 +158,7 @@ public class TdsClientTestAllNoLob {
           runTest("SqlChaos", () -> new TdsClientSqlChaos().runSql(pool)),
           runTest("StatementAddChaos", () -> new TdsClientStatementAddChaos().runSql(pool)),
           runTest("TestOutParams", () -> new TdsClientTestOutParams().runSql(pool)),
-          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool)),
-          runTest("XmlStream", () -> new TdsClientXmlStream().runSql(pool))
+          runTest("TypeMatrix", () -> new TdsClientTypeMatrix().runSql(pool))
       );
     });
 

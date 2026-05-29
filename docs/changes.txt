@@ -8,3 +8,9 @@ Changed to "id" from "@id"
           stmt9.bind("id", 1).add(); // Saves binding 1, prepares binding 2
           stmt9.bind("id", 2).add(); // Saves binding 2, prepares binding 3
           stmt9.bind("id", 3);       // Binds 3. NO .add() here!
+
+remove test TestXmlStream
+
+removed
+
+--- Executing: 5. Empty Batch Test --- from TdsClientBatch

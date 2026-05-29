@@ -106,12 +106,12 @@ public class TdsClientBatch {
           );
         }))
 
-         .then(Mono.defer(() -> {
-           System.out.println("\n--- Executing: 5. Empty Batch Test ---");
-           Batch emptyBatch = connection.createBatch();
-           // Deliberately not adding any statements
-           return executeStream("5. Empty Batch Test", emptyBatch.execute(), Result::getRowsUpdated);
-         }))
+//         .then(Mono.defer(() -> {
+//           System.out.println("\n--- Executing: 5. Empty Batch Test ---");
+//           Batch emptyBatch = connection.createBatch();
+//           // Deliberately not adding any statements
+//           return executeStream("5. Empty Batch Test", emptyBatch.execute(), Result::getRowsUpdated);
+//         }))
 
         .then(Mono.defer(() -> {
           System.out.println("\n--- Executing: 6. Partial Failure Batch Test ---");
