@@ -4,17 +4,9 @@ import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
-import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Statement;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import static io.r2dbc.spi.ConnectionFactoryOptions.DATABASE;
-import static io.r2dbc.spi.ConnectionFactoryOptions.DRIVER;
-import static io.r2dbc.spi.ConnectionFactoryOptions.HOST;
-import static io.r2dbc.spi.ConnectionFactoryOptions.PASSWORD;
-import static io.r2dbc.spi.ConnectionFactoryOptions.PORT;
-import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 public class TdsClientBindMassiveRpc {
 

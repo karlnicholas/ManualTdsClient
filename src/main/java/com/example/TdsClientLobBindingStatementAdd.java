@@ -5,8 +5,6 @@ import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Blob;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
-import io.r2dbc.spi.ConnectionFactory;
-import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import io.r2dbc.spi.Statement;
 import org.reactivestreams.Publisher;
@@ -16,8 +14,6 @@ import reactor.core.publisher.Mono;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.function.Function;
-
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientLobBindingStatementAdd {
 

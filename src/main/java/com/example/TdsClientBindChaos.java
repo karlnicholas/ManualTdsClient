@@ -1,9 +1,15 @@
 package com.example;
 
 // ... (Standard Imports & Setup Boilerplate) ...
-import io.r2dbc.pool.*; import io.r2dbc.spi.*;
-import reactor.core.publisher.*; import java.time.Duration;
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
+
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactories;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Duration;
 
 public class TdsClientBindChaos {
   public static void main(String[] args) { new TdsClientBindChaos().run(); }

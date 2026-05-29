@@ -2,15 +2,17 @@ package com.example;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
-import io.r2dbc.spi.*;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactories;
+import io.r2dbc.spi.ConnectionFactory;
+import io.r2dbc.spi.Result;
+import io.r2dbc.spi.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientStatementAddChaos {
   private static final Logger logger = LoggerFactory.getLogger(TdsClientStatementAddChaos.class);

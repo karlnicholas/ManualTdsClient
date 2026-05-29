@@ -1,10 +1,14 @@
 package com.example;
 
-import io.r2dbc.pool.*;
-import io.r2dbc.spi.*;
-import reactor.core.publisher.*;
+import io.r2dbc.pool.ConnectionPool;
+import io.r2dbc.pool.ConnectionPoolConfiguration;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactories;
+import io.r2dbc.spi.Result;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.time.Duration;
-import static io.r2dbc.spi.ConnectionFactoryOptions.*;
 
 public class TdsClientFilterChaos {
   public static void main(String[] args) { new TdsClientFilterChaos().run(); }
