@@ -19,7 +19,6 @@ public record AllDataTypesRecord(
         Long testBigInt,
         BigDecimal testDecimal,
         BigDecimal testNumeric,
-        BigDecimal testSmallMoney,
         BigDecimal testMoney,
 
         // Approximate Numerics
@@ -32,7 +31,6 @@ public record AllDataTypesRecord(
         LocalDateTime testDatetime,
         LocalDateTime testDatetime2,
         LocalDateTime testSmallDatetime,
-        OffsetDateTime testDtOffset,
 
         // Character Strings (Non-Unicode)
         String testChar,
@@ -52,8 +50,7 @@ public record AllDataTypesRecord(
         byte[] testImage,
 
         // Other
-        UUID testGuid,
-        String testXml
+        UUID testGuid
 ) {
   @Override
   public String toString() {
@@ -65,7 +62,6 @@ public record AllDataTypesRecord(
             "    " + fmt(testBigInt) + ",     -- test_bigint\n" +
             "    " + fmt(testDecimal) + ",    -- test_decimal\n" +
             "    " + fmt(testNumeric) + ",    -- test_numeric\n" +
-            "    " + fmt(testSmallMoney) + ", -- test_smallmoney\n" +
             "    " + fmt(testMoney) + ",      -- test_money\n" +
             "    " + fmt(testReal) + ",       -- test_real\n" +
             "    " + fmt(testFloat) + ",      -- test_float\n" +
@@ -74,7 +70,6 @@ public record AllDataTypesRecord(
             "    " + fmtSql(testDatetime) + ", -- test_datetime\n" +
             "    " + fmtSql(testDatetime2) + ", -- test_datetime2\n" +
             "    " + fmtSql(testSmallDatetime) + ", -- test_smalldatetime\n" +
-            "    " + fmtSql(testDtOffset) + ", -- test_dtoffset\n" +
             "    " + fmtSql(testChar, false) + ", -- test_char\n" +
             "    " + fmtSql(testVarchar, false) + ", -- test_varchar\n" +
             "    " + fmtSql(testVarcharMax, false) + ", -- test_varchar_max\n" +
@@ -87,7 +82,6 @@ public record AllDataTypesRecord(
             "    " + fmtHex(testVarbinaryMax) + ", -- test_varbinary_max\n" +
             "    " + fmtHex(testImage) + ",   -- test_image\n" +
             "    " + fmtSql(testGuid) + ",   -- test_guid\n" +
-            "    " + fmtSql(testXml, false) + " -- test_xml\n" +
             ");";
   }
 
