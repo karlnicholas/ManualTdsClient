@@ -3,6 +3,7 @@ package com.example;
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.ConnectionFactories;
+import io.r2dbc.spi.ValidationDepth;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -179,7 +180,7 @@ public class TdsClientTestAll {
 //        .then(randomGroup)
 //        .then(selectOnlyGroup)
 //        .then(transactionGroup)
-        .then(miscGroup)
+//        .then(miscGroup)
         ;
   }
 
@@ -198,87 +199,47 @@ public class TdsClientTestAll {
     System.out.println("\n--- Starting Post-Test Pool Integrity Audit ---");
     System.out.println("Requesting " + poolSize + " concurrent connections to flush out poisoned sockets...");
 
-//    AtomicLong grandTotalQueued = new AtomicLong();
-//    AtomicLong grandTotalComplete = new AtomicLong();
-//    AtomicLong grandTotalError = new AtomicLong();
-//    AtomicLong grandTotalCancel = new AtomicLong();
-//    List<String> finalStates = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
-//
-//    return Flux.range(1, poolSize)
-//    .flatMap(i -> Mono.from(pool.create()))
-//    .collectList()
-//    .flatMap(connections -> {
-//      return Flux.fromIterable(connections)
-//          .flatMap(conn -> {
-//            TdsConnection nativeConn;
-//            if (conn instanceof io.r2dbc.spi.Wrapped<?> wrapped) {
-//              nativeConn = (TdsConnection) wrapped.unwrap();
-//            } else {
-//              nativeConn = (TdsConnection) conn;
-//            }
-//
-//            return Flux.from(conn.createStatement("SELECT 1").execute())
-//                .flatMap(result -> result.map((row, meta) -> row.get(0, Integer.class)))
-//                .timeout(Duration.ofSeconds(2))
-//                .doOnError(e -> System.err.println("  [!] HUNG! Timeout reached."))
-//                .then()
-//                .doOnSuccess(v -> {
-//                  long queued = nativeConn.getTransport().debuggingInformation.queuedCount.get();
-//                  long complete = nativeConn.getTransport().debuggingInformation.completeCallback.get();
-//                  long error = nativeConn.getTransport().debuggingInformation.errorCallback.get();
-//                  long cancel = nativeConn.getTransport().debuggingInformation.cancelCallback.get();
-//
-//                  grandTotalQueued.addAndGet(queued);
-//                  grandTotalComplete.addAndGet(complete);
-//                  grandTotalError.addAndGet(error);
-//                  grandTotalCancel.addAndGet(cancel);
-//
-//                  finalStates.add(
-//                      "SPID: " + nativeConn.getTransport().getContext().getSpid() +
-//                          nativeConn.getTransport().debuggingInformation.toString()
-//                  );
-//                })
-//                .thenReturn(conn);
-//          })
-//          .then()
-//          .then(Flux.fromIterable(connections)
-//              .flatMap(conn -> Mono.from(conn.close()))
-//              .then());
-//    })
-//    .doOnSuccess(v -> {
-//      System.out.println("--- Pool Audit Complete ---\n");
-//      finalStates.forEach(state -> System.out.println("GOOD DRIVER STATE: " + state));
-//
-//      long totalQ = grandTotalQueued.get();
-//      long totalC = grandTotalComplete.get();
-//      long totalE = grandTotalError.get();
-//      long totalX = grandTotalCancel.get();
-//      long activePings = finalStates.size();
-//
-//      long accountedFor = totalC + totalE + totalX;
-//
-//      System.out.println("\n========================================================");
-//      System.out.println("📊 FINAL AUDIT SUMMARY");
-//      System.out.println("========================================================");
-//      System.out.println("  Connections Audited:   " + activePings + " / " + poolSize);
-//      System.out.println("  GRAND TOTAL QUERIES:   " + totalQ);
-//      System.out.println("  --------------------------------------------------");
-//      System.out.println("  Driver Completed:      " + totalC);
-//      System.out.println("  Driver Errored:        " + totalE);
-//      System.out.println("  Driver Cancelled:      " + totalX);
-//      System.out.println("  Active Audit Pings:    " + activePings);
-//      System.out.println("  --------------------------------------------------");
-//      System.out.println("  MATH CHECK:            (" + totalC + " + " + totalE + " + " + totalX + " + " + activePings + ") == " + totalQ);
-//
-//      if (totalQ == accountedFor) {
-//        System.out.println("  STATUS:                ✅ PERFECT MATCH (Zero Leaks)");
-//      } else {
-//        System.out.println("  STATUS:                ❌ MISMATCH (Leak Detected)");
-//        System.out.println("  DIFFERENCE:            " + (totalQ - accountedFor) + " queries lost/stuck.");
-//      }
-//      System.out.println("========================================================\n");
-//
-//    });
-    return Mono.empty();
+    List<String> finalStates = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+    return Flux.range(1, poolSize)
+        .flatMap(i -> Mono.from(pool.create()))
+        .collectList()
+        .flatMap(connections -> {
+          return Flux.fromIterable(connections)
+              .flatMap(conn -> {
+                // Use R2DBC's native validate method with a REMOTE depth
+                return Mono.from(conn.validate(ValidationDepth.REMOTE))
+                    .timeout(Duration.ofSeconds(2))
+                    .doOnSuccess(isValid -> {
+                      if (Boolean.TRUE.equals(isValid)) {
+                        finalStates.add("VALID");
+                      } else {
+                        System.err.println("  [!] Connection reported as INVALID by driver.");
+                      }
+                    })
+                    .doOnError(e -> System.err.println("  [!] HUNG or ERROR! Timeout/failure reached: " + e.getMessage()))
+                    // Swallow the error so we don't break the Flux and skip closing the other connections
+                    .onErrorResume(e -> Mono.empty())
+                    .thenReturn(conn);
+              })
+              .then()
+              // Clean up all connections safely
+              .then(Flux.fromIterable(connections)
+                  .flatMap(conn -> Mono.from(conn.close()).onErrorResume(e -> Mono.empty()))
+                  .then());
+        })
+        .doOnSuccess(v -> {
+          System.out.println("--- Pool Audit Complete ---\n");
+          finalStates.forEach(state -> System.out.println("GOOD DRIVER STATE: " + state));
+
+          long activePings = finalStates.size();
+
+          System.out.println("\n========================================================");
+          System.out.println("📊 FINAL AUDIT SUMMARY");
+          System.out.println("========================================================");
+          System.out.println("  Connections Audited:   " + activePings + " / " + poolSize);
+          System.out.println("  --------------------------------------------------");
+          System.out.println("========================================================\n");
+        });
   }
 }
