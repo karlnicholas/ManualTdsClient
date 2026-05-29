@@ -31,6 +31,8 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.example.AllDataTypesMapper.allDataTypesMapper;
+
 public class TdsClientEssential {
   public static void main(String[] args) {
     new TdsClientEssential().run();
@@ -272,103 +274,6 @@ public class TdsClientEssential {
   }
 
   // --- Mappers & SQL Definitions ---
-
-//  BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
-//      Integer.parseInt(row.get(0, String.class)),
-//      Boolean.parseBoolean(row.get(1, String.class)), // Corrected from getBoolean
-//      Byte.parseByte(row.get(2, String.class)),
-//      Short.parseShort(row.get(3, String.class)),
-//      Integer.parseInt(row.get(4, String.class)),
-//      Long.parseLong(row.get(5, String.class)),
-//      new BigDecimal(row.get(6, String.class)),
-//      new BigDecimal(row.get(7, String.class)),
-//      new BigDecimal(row.get(8, String.class)),
-//      new BigDecimal(row.get(9, String.class)),
-//      Float.parseFloat(row.get(10, String.class)),
-//      Double.parseDouble(row.get(11, String.class)),
-//      LocalDate.parse(row.get(12, String.class)),
-//      LocalTime.parse(row.get(13, String.class)),
-//      LocalDateTime.parse(row.get(14, String.class)),
-//      LocalDateTime.parse(row.get(15, String.class)),
-//      LocalDateTime.parse(row.get(16, String.class)),
-//      row.get(17, String.class),
-//      row.get(18, String.class),
-//      row.get(19, String.class),
-//      row.get(20, String.class),
-//      row.get(21, String.class),
-//      row.get(22, String.class),
-//      row.get(23, String.class),
-//      row.get(24, String.class).getBytes(), // See note below regarding byte[]
-//      row.get(25, String.class).getBytes(),
-//      row.get(26, String.class).getBytes(),
-//      row.get(27, String.class).getBytes(),
-//      UUID.fromString(row.get(28, String.class)),
-//      row.get(29, String.class)
-//  );
-
-//  BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
-//      Integer.parseInt(row.get(0, String.class)),
-//      Boolean.parseBoolean(row.get(1, String.class)), // Corrected from getBoolean
-//      Byte.parseByte(row.get(2, String.class)),
-//      Short.parseShort(row.get(3, String.class)),
-//      Integer.parseInt(row.get(4, String.class)),
-//      Long.parseLong(row.get(5, String.class)),
-//      new BigDecimal(row.get(6, String.class)),
-//      new BigDecimal(row.get(7, String.class)),
-//      new BigDecimal(row.get(8, String.class)),
-//      new BigDecimal(row.get(9, String.class)),
-//      Float.parseFloat(row.get(10, String.class)),
-//      Double.parseDouble(row.get(11, String.class)),
-//      LocalDate.parse(row.get(12, String.class)),
-//      LocalTime.parse(row.get(13, String.class)),
-//      LocalDateTime.parse(row.get(14, String.class)),
-//      LocalDateTime.parse(row.get(15, String.class)),
-//      LocalDateTime.parse(row.get(16, String.class)),
-//      row.get(17, String.class),
-//      row.get(18, String.class),
-//      row.get(19, String.class),
-//      row.get(20, String.class),
-//      row.get(21, String.class),
-//      row.get(22, String.class),
-//      row.get(23, String.class),
-//      row.get(24, String.class).getBytes(), // See note below regarding byte[]
-//      row.get(25, String.class).getBytes(),
-//      row.get(26, String.class).getBytes(),
-//      row.get(27, String.class).getBytes(),
-//      UUID.fromString(row.get(28, String.class)),
-//      row.get(29, String.class)
-//  );
-  BiFunction<Row, RowMetadata, AllDataTypesRecord> allDataTypesMapper = (row, meta) -> new AllDataTypesRecord(
-      row.get(0, Integer.class),
-      row.get(1, Boolean.class),
-      row.get(2, Byte.class),
-      row.get(3, Short.class),
-      row.get(4, Integer.class),
-      row.get(5, Long.class),
-      row.get(6, BigDecimal.class),
-      row.get(7, BigDecimal.class),
-      row.get(8, BigDecimal.class),
-      row.get(9, Float.class),
-      row.get(10, Double.class),
-      row.get(11, LocalDate.class),
-      row.get(12, LocalTime.class),
-      row.get(13, LocalDateTime.class),
-      row.get(14, LocalDateTime.class),
-      row.get(15, LocalDateTime.class),
-      row.get(16, String.class),
-      row.get(17, String.class),
-      row.get(18, String.class),
-      row.get(19, String.class),
-      row.get(20, String.class),
-      row.get(21, String.class),
-      row.get(22, String.class),
-      row.get(23, byte[].class),
-      row.get(24, byte[].class),
-      row.get(25, byte[].class),
-      row.get(26, byte[].class),
-      UUID.fromString(row.get(27, String.class))
-  );
-
 
   private static final String bindSqlNames = """
     INSERT INTO dbo.AllDataTypes (
