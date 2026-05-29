@@ -1,0 +1,10 @@
+removed
+              .bind(16, Parameters.in(R2dbcType.TIMESTAMP_WITH_TIME_ZONE, OffsetDateTime.parse("2023-12-25T14:30:15.1234567+05:30")))
+              .bind(29, "<root><node>Test XML</node></root>");
+test_smallmoney SMALLMONEY NULL,
+
+Changed to "id" from "@id"
+          // Call .add() BETWEEN bindings, but not on the final one.
+          stmt9.bind("id", 1).add(); // Saves binding 1, prepares binding 2
+          stmt9.bind("id", 2).add(); // Saves binding 2, prepares binding 3
+          stmt9.bind("id", 3);       // Binds 3. NO .add() here!
