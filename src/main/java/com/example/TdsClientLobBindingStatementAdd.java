@@ -63,14 +63,14 @@ public class TdsClientLobBindingStatementAdd {
     Statement stmt = connection.createStatement(insertSql);
 
     // Bind first set (StatementAdd 1)
-    stmt.bind("@id", 1).bind("@data", Blob.from(heavyStream)).add();
+    stmt.bind("id", 1).bind("data", Blob.from(heavyStream)).add();
 
     // Bind second set (StatementAdd 2)
-    stmt.bind("@id", 2).bind("@data", Blob.from(heavyStream)).add();
+    stmt.bind("id", 2).bind("data", Blob.from(heavyStream)).add();
 
     // Bind third set (Standard byte array to test mix)
     byte[] smallData = new byte[]{0x10, 0x20, 0x30};
-    stmt.bind("@id", 3).bind("@data", ByteBuffer.wrap(smallData)).add();
+    stmt.bind("id", 3).bind("data", ByteBuffer.wrap(smallData)).add();
 
     System.out.println("\n--- Executing Parameterized LOB StatementAdd ---");
     return Flux.from(stmt.execute())

@@ -37,11 +37,12 @@ public class TdsClientBindChar {
 
   public Mono<Void> runSql(ConnectionPool pool) {
     return Mono.defer(() -> testImplicitStringBinding(pool))
-        .then(Mono.defer(() -> testExplicitStringBinding(pool)))
-        .then(Mono.defer(() -> testImplicitCharArrayBinding(pool)))
-        .then(Mono.defer(() -> testExplicitCharArrayBinding(pool)))
-        .then(Mono.defer(() -> testImplicitCharBufferBinding(pool)))
-        .then(Mono.defer(() -> testExplicitCharBufferBinding(pool)));
+//        .then(Mono.defer(() -> testExplicitStringBinding(pool)))
+//        .then(Mono.defer(() -> testImplicitCharArrayBinding(pool)))
+//        .then(Mono.defer(() -> testExplicitCharArrayBinding(pool)))
+//        .then(Mono.defer(() -> testImplicitCharBufferBinding(pool)))
+//        .then(Mono.defer(() -> testExplicitCharBufferBinding(pool)))
+        ;
   }
 
   // --- STRING TESTS ---

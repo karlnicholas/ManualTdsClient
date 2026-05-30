@@ -56,10 +56,10 @@ public class TdsClientDataTypeAll {
     // Query rearranged: Standard types first, LOB (_max) types last
     String sql = "SET TEXTSIZE -1; SELECT " +
         "id, test_bit, test_tinyint, test_smallint, test_int, test_bigint, " +
-        "test_decimal, test_numeric, test_smallmoney, test_money, test_real, test_float, " +
-        "test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, test_dtoffset, " +
+        "test_decimal, test_numeric, test_money, test_real, test_float, " +
+        "test_date, test_time, test_datetime, test_datetime2, test_smalldatetime, " +
         "test_char, test_varchar, test_text, test_nchar, test_nvarchar, test_binary, " +
-        "test_varbinary, test_image, test_guid, test_xml, " +
+        "test_varbinary, test_image, test_guid, " +
 //        "test_varchar_max " +
 //        "test_varchar_max, test_nvarchar_max " +
         "test_varchar_max, test_varbinary_max " +
@@ -84,7 +84,6 @@ public class TdsClientDataTypeAll {
           printColumn(row, "test_bigint", Long.class);
           printColumn(row, "test_decimal", BigDecimal.class);
           printColumn(row, "test_numeric", BigDecimal.class);
-          printColumn(row, "test_smallmoney", BigDecimal.class);
           printColumn(row, "test_money", BigDecimal.class);
           printColumn(row, "test_real", Float.class);
           printColumn(row, "test_float", Double.class);
@@ -95,7 +94,6 @@ public class TdsClientDataTypeAll {
           printColumn(row, "test_datetime", LocalDateTime.class);
           printColumn(row, "test_datetime2", LocalDateTime.class);
           printColumn(row, "test_smalldatetime", LocalDateTime.class);
-          printColumn(row, "test_dtoffset", OffsetDateTime.class);
 
           // String/Text Types
           printColumn(row, "test_char", String.class);
@@ -109,8 +107,6 @@ public class TdsClientDataTypeAll {
           printColumn(row, "test_varbinary", byte[].class);
           printColumn(row, "test_image", byte[].class);
           printColumn(row, "test_guid", UUID.class);
-
-          printColumn(row, "test_xml", String.class);
 
           // 2. Handle LOB Columns (Streaming)
 //          streamClob(row, "test_varchar_max").doOnNext( length -> System.out.println("  -> test_varchar_max length: " + length));

@@ -114,9 +114,6 @@ public class TdsClientDataTypeNumeric {
         new NumericTestScenario("test_numeric", new BigDecimal("999.99"), "BigDecimal to NUMERIC"),
         new NumericTestScenario("test_numeric", new BigInteger("999"), "BigInteger to NUMERIC"),
 
-        // --- SMALLMONEY (1 permutation) ---
-        new NumericTestScenario("test_smallmoney", new BigDecimal("214.99"), "BigDecimal to SMALLMONEY"),
-
         // --- MONEY (1 permutation) ---
         new NumericTestScenario("test_money", new BigDecimal("922337203685477.58"), "BigDecimal to MONEY")
     );

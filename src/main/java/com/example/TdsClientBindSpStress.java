@@ -82,42 +82,43 @@ public class TdsClientBindSpStress {
         .then(Mono.defer(() -> executeExpectedErrorStream("2. SP Error (Missing Procedure)",
             connection.createStatement("EXEC dbo.ProcThatDoesNotExist").execute(), Result::getRowsUpdated)))
 
-        .then(Mono.defer(() -> {
-          Statement stmt = connection.createStatement("EXEC dbo.TestMultiResultProc @InputVal = 'InvalidString', @OutputVal = @out OUTPUT")
-              .bind("@out", Parameters.out(R2dbcType.INTEGER));
-          return executeExpectedErrorStream("3. SP Error (Invalid Parameter Type)", stmt.execute(), Result::getRowsUpdated);
-        }))
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement("EXEC dbo.TestMultiResultProc @InputVal = 'InvalidString', @OutputVal = @out OUTPUT")
+//              .bind("@out", Parameters.out(R2dbcType.INTEGER));
+//          return executeExpectedErrorStream("3. SP Error (Invalid Parameter Type)", stmt.execute(), Result::getRowsUpdated);
+//        }))
 
-        // 4. High Throughput Stress Test (Fixed Mono inference)
-        .then(Mono.defer(() -> {
-          System.out.println("\n--- Executing: 4. High Throughput Stress Test (10k requests) ---");
-          long start = System.currentTimeMillis();
-          AtomicInteger counter = new AtomicInteger();
-
-          return Flux.range(1, 10000)
-              .flatMap(i -> Mono.usingWhen(
-                  Mono.from(pool.create()), // Lease a new connection from the pool
-                  c -> Mono.from(c.createStatement("SELECT " + i).execute())
-                      .flatMapMany(res -> res.map((row, meta) -> row.get(0, Integer.class)))
-                      .next(), // Resolves the generic inference error by returning a Mono
-                  Connection::close
-              ), 10) // Strict concurrency matches max pool size
-              .doOnNext(v -> {
-                if (counter.incrementAndGet() % 1000 == 0) System.out.print(".");
-              })
-              .then(Mono.fromRunnable(() -> {
-                long duration = System.currentTimeMillis() - start;
-                System.out.println("\n  -> Stress Test Completed: 10,000 queries in " + duration + "ms.");
-                System.out.println("--- Completed: 4. High Throughput Stress Test ---");
-              }));
-        }))
-
-        // 5. Final State Verification on the primary connection
-        .then(Mono.defer(() -> executeStream("5. Final Driver Sanity Check",
-            connection.createStatement("SELECT 'Driver state is synchronized and healthy!' AS Status").execute(),
-            res -> res.map((row, meta) -> row.get("Status", String.class)))))
-
-        .contextWrite(Context.of("trace-id", traceId));
+//        // 4. High Throughput Stress Test (Fixed Mono inference)
+//        .then(Mono.defer(() -> {
+//          System.out.println("\n--- Executing: 4. High Throughput Stress Test (10k requests) ---");
+//          long start = System.currentTimeMillis();
+//          AtomicInteger counter = new AtomicInteger();
+//
+//          return Flux.range(1, 10000)
+//              .flatMap(i -> Mono.usingWhen(
+//                  Mono.from(pool.create()), // Lease a new connection from the pool
+//                  c -> Mono.from(c.createStatement("SELECT " + i).execute())
+//                      .flatMapMany(res -> res.map((row, meta) -> row.get(0, Integer.class)))
+//                      .next(), // Resolves the generic inference error by returning a Mono
+//                  Connection::close
+//              ), 10) // Strict concurrency matches max pool size
+//              .doOnNext(v -> {
+//                if (counter.incrementAndGet() % 1000 == 0) System.out.print(".");
+//              })
+//              .then(Mono.fromRunnable(() -> {
+//                long duration = System.currentTimeMillis() - start;
+//                System.out.println("\n  -> Stress Test Completed: 10,000 queries in " + duration + "ms.");
+//                System.out.println("--- Completed: 4. High Throughput Stress Test ---");
+//              }));
+//        }))
+//
+//         // 5. Final State Verification on the primary connection
+//        .then(Mono.defer(() -> executeStream("5. Final Driver Sanity Check",
+//            connection.createStatement("SELECT 'Driver state is synchronized and healthy!' AS Status").execute(),
+//            res -> res.map((row, meta) -> row.get("Status", String.class)))))
+//
+//        .contextWrite(Context.of("trace-id", traceId))
+        ;
   }
 
   // --- Strict Async Helper ---

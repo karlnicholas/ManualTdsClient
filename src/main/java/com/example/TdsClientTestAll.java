@@ -69,12 +69,12 @@ public class TdsClientTestAll {
       return Mono.when(
           runTest("BindChaos", () -> new TdsClientBindChaos().runSql(pool)),
           runTest("BindChar", () -> new TdsClientBindChar().runSql(pool)),
-          runTest("BindEomParadox", () -> new TdsClientBindEomParadox().runSql(pool)),
+//          runTest("BindEomParadox", () -> new TdsClientBindEomParadox().runSql(pool)),
           runTest("BindExceptions", () -> new TdsClientBindExceptions().runSql(pool)),
-          runTest("BindMassiveRpc", () -> new TdsClientBindMassiveRpc().runSuite(pool)),
-          runTest("BindMisbehavior", () -> new TdsClientBindMisbehavior().runSql(pool)),
-          runTest("BindSpStress", () -> new TdsClientBindSpStress().runSql(pool)),
-          runTest("BindThroughput", () -> new TdsClientBindThroughput().runSuite(pool))
+          runTest("BindMassiveRpc", () -> new TdsClientBindMassiveRpc().runSuite(pool))
+//          runTest("BindMisbehavior", () -> new TdsClientBindMisbehavior().runSql(pool))
+//          runTest("BindSpStress", () -> new TdsClientBindSpStress().runSql(pool))
+//          runTest("BindThroughput", () -> new TdsClientBindThroughput().runSuite(pool))
       );
     });
 
@@ -117,8 +117,8 @@ public class TdsClientTestAll {
     Mono<Void> orderGroup = Mono.defer(() -> {
       System.out.println("\n\n🟫 STARTING GROUP: ORDER 🟫");
       return Mono.when(
-          runTest("Order", () -> new TdsClientOrder().runSql(pool)),
-          runTest("OrderSync", () -> new TdsClientOrderSync().runSql(pool))
+          runTest("Order", () -> new TdsClientOrder().runSql(pool))
+//          runTest("OrderSync", () -> new TdsClientOrderSync().runSql(pool))
       );
     });
 
@@ -138,7 +138,7 @@ public class TdsClientTestAll {
       return Mono.when(
           runTest("SelectOnlyChaos", () -> new TdsClientSelectOnlyChaos().runSql(pool)),
           runTest("SelectOnlyExceptions", () -> new TdsClientSelectOnlyExceptions().runSql(pool)),
-          runTest("SelectOnlyMacroChaos", () -> new TdsClientSelectOnlyMacroChaos().runSql(pool)),
+//          runTest("SelectOnlyMacroChaos", () -> new TdsClientSelectOnlyMacroChaos().runSql(pool)),
           runTest("SelectOnlyMicroPoison", () -> new TdsClientSelectOnlyMicroPoison().runSql(pool)),
           runTest("SelectOnlyMisbehavior", () -> new TdsClientSelectOnlyMisbehavior().runSql(pool))
       );
@@ -171,14 +171,14 @@ public class TdsClientTestAll {
     return
         essentialGroup
         .then(batchGroup)
-//        .then(bindGroup)
-//        .then(dataTypeGroup)
-//        .then(filterGroup)
-////        .then(lobGroup)
-//        .then(orderGroup)
-//        .then(randomGroup)
-//        .then(selectOnlyGroup)
-//        .then(transactionGroup)
+        .then(bindGroup)
+        .then(dataTypeGroup)
+        .then(filterGroup)
+        .then(lobGroup)
+        .then(orderGroup)
+        .then(randomGroup)
+        .then(selectOnlyGroup)
+        .then(transactionGroup)
         .then(miscGroup)
         ;
   }

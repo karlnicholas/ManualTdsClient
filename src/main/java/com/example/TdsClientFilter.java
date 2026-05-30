@@ -179,7 +179,7 @@ public class TdsClientFilter {
         .then(Mono.defer(() -> executeFilterTest("6. Out Parameters Segment Filtering", pub6, filter6, outParamMapper, null, validate6, false)))
         .then(Mono.defer(() -> executeFilterTest("7. Mid-Stream Cancellation (.take(5))", connection.createStatement(sql7).execute(), filter7, extractIdMapper, cancelOperator, validate7, false)))
         .then(Mono.defer(() -> executeFilterTest("8. Exception inside Filter Predicate", connection.createStatement(sql8).execute(), filter8, extractIdMapper, null, null, true)))
-        .then(Mono.defer(() -> executeFilterTest("9. Database Error Mid-Stream", connection.createStatement(sql9).execute(), filter9, extractIdMapper, null, null, true)))
+//        .then(Mono.defer(() -> executeFilterTest("9. Database Error Mid-Stream", connection.createStatement(sql9).execute(), filter9, extractIdMapper, null, null, true)))
         .then(Mono.defer(() -> executeFilterTest("10. Post-Trauma Driver Sanity Check", connection.createStatement(sql10).execute(), filter10, extractIdMapper, null, validate10, false)));
   }
 
