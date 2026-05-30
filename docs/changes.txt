@@ -105,3 +105,33 @@ Client hangs
 
     TdsClientSelectOnlyMacroChaos
       fails as buffer backs up
+
+    TdsClientLobExtraction
+      can't handle queries
+    // Dynamic Scaled Queries
+    String q4 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST('A' AS VARCHAR(MAX)), " + scale.stringCount + ") AS LargeString;";
+    String q5 = "SET TEXTSIZE -1; SELECT CAST(REPLICATE(CAST('A' AS VARCHAR(MAX)), " + scale.binaryCount + ") AS VARBINARY(MAX)) AS LargeBinary;";
+    String q6 = "SET TEXTSIZE -1; SELECT REPLICATE(CAST(N'あ' AS NVARCHAR(MAX)), " + scale.nstringCount + ") AS LargeNString;";
+
+
+TdsClientLobBinding
+        // --- CANCELLED LOB TESTS ---
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 5)
+//              .bind("@data", Blob.from(createCancelledStream(1)));
+//          return executeExpectedErrorStream("6. Execute Cancelled Blob Bind (1 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 6)
+//              .bind("@data", Blob.from(createCancelledStream(2)));
+//          return executeExpectedErrorStream("7. Execute Cancelled Blob Bind (2 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 7)
+//              .bind("@data", Blob.from(createCancelledStream(50)));
+//          return executeExpectedErrorStream("8. Execute Cancelled Blob Bind (50 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//

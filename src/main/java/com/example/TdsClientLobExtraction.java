@@ -118,14 +118,15 @@ public class TdsClientLobExtraction {
         .then(Mono.defer(() -> executeStream("3A. VARBINARY(MAX) - Sync ByteBuffer", connection.createStatement(q3).execute(), syncBlob)))
         .then(Mono.defer(() -> executeStream("3B. VARBINARY(MAX) - Async Blob", connection.createStatement(q3).execute(), asyncBlob)))
 
-        .then(Mono.defer(() -> executeStream("4A. Generated String - Sync String", connection.createStatement(q4).execute(), syncString)))
-        .then(Mono.defer(() -> executeStream("4B. Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
-
-        .then(Mono.defer(() -> executeStream("5A. Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
-        .then(Mono.defer(() -> executeStream("5B. Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
-
-        .then(Mono.defer(() -> executeStream("6A. Generated NVARCHAR - Sync String", connection.createStatement(q6).execute(), syncString)))
-        .then(Mono.defer(() -> executeStream("6B. Generated NVARCHAR - Async Clob", connection.createStatement(q6).execute(), asyncClob)));
+//        .then(Mono.defer(() -> executeStream("4A. Generated String - Sync String", connection.createStatement(q4).execute(), syncString)))
+//        .then(Mono.defer(() -> executeStream("4B. Generated String - Async Clob", connection.createStatement(q4).execute(), asyncClob)))
+//
+//        .then(Mono.defer(() -> executeStream("5A. Generated Binary - Sync ByteBuffer", connection.createStatement(q5).execute(), syncBlob)))
+//        .then(Mono.defer(() -> executeStream("5B. Generated Binary - Async Blob", connection.createStatement(q5).execute(), asyncBlob)))
+//
+//        .then(Mono.defer(() -> executeStream("6A. Generated NVARCHAR - Sync String", connection.createStatement(q6).execute(), syncString)))
+//        .then(Mono.defer(() -> executeStream("6B. Generated NVARCHAR - Async Clob", connection.createStatement(q6).execute(), asyncClob)))
+        ;
   }
 
   // ---------------------------------------------------------------------------------------

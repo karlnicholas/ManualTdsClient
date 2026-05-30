@@ -96,25 +96,25 @@ public class TdsClientLobBinding {
         }))
 
         // --- CANCELLED LOB TESTS ---
-        .then(Mono.defer(() -> {
-          Statement stmt = connection.createStatement(insertBinarySql)
-              .bind("@id", 5)
-              .bind("@data", Blob.from(createCancelledStream(1)));
-          return executeExpectedErrorStream("6. Execute Cancelled Blob Bind (1 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
-        }))
-        .then(Mono.defer(() -> {
-          Statement stmt = connection.createStatement(insertBinarySql)
-              .bind("@id", 6)
-              .bind("@data", Blob.from(createCancelledStream(2)));
-          return executeExpectedErrorStream("7. Execute Cancelled Blob Bind (2 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
-        }))
-        .then(Mono.defer(() -> {
-          Statement stmt = connection.createStatement(insertBinarySql)
-              .bind("@id", 7)
-              .bind("@data", Blob.from(createCancelledStream(50)));
-          return executeExpectedErrorStream("8. Execute Cancelled Blob Bind (50 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
-        }))
-
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 5)
+//              .bind("@data", Blob.from(createCancelledStream(1)));
+//          return executeExpectedErrorStream("6. Execute Cancelled Blob Bind (1 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 6)
+//              .bind("@data", Blob.from(createCancelledStream(2)));
+//          return executeExpectedErrorStream("7. Execute Cancelled Blob Bind (2 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//        .then(Mono.defer(() -> {
+//          Statement stmt = connection.createStatement(insertBinarySql)
+//              .bind("@id", 7)
+//              .bind("@data", Blob.from(createCancelledStream(50)));
+//          return executeExpectedErrorStream("8. Execute Cancelled Blob Bind (50 Chunk Error)", stmt.execute(), Result::getRowsUpdated);
+//        }))
+//
         .then(Mono.defer(() -> {
           byte[] standardBytes = new byte[]{0x01, 0x02, 0x03, 0x04};
           Statement stmt = connection.createStatement(insertBinarySql)

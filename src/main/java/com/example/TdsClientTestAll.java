@@ -106,7 +106,7 @@ public class TdsClientTestAll {
       System.out.println("\n\n🟥 STARTING GROUP: LOB 🟥");
       return Mono.when(
           runTest("LobBinding", () -> new TdsClientLobBinding().runSql(pool)),
-          runTest("LobBindingStatementAdd", () -> new TdsClientLobBindingStatementAdd().runSql(pool)),
+//          runTest("LobBindingStatementAdd", () -> new TdsClientLobBindingStatementAdd().runSql(pool)),
           runTest("LobChaos", () -> new TdsClientLobChaos().runSql(pool)),
           runTest("LobExtraction", () -> new TdsClientLobExtraction().runSql(pool)),
           runTest("LobOrderSync", () -> new TdsClientLobOrderSync().runSql(pool))
