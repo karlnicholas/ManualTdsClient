@@ -23,10 +23,11 @@ public class TdsClientRandomSequential {
 
   private void run() {
     String r2dbcUrl = "r2dbc:mssql://reactnonreact:reactnonreact@localhost:1433/reactnonreact?trustServerCertificate=true";
-    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50)
-.build());
+    ConnectionPool pool = new ConnectionPool(ConnectionPoolConfiguration.builder(ConnectionFactories.get(r2dbcUrl)).initialSize(2).maxSize(50).build());
 
     System.out.println("Connecting to pool for Comprehensive Binding Matrix & Way Testing...");
+
+    long startTime = System.currentTimeMillis();
 
     // Manage the Pool lifecycle and fail-fast on errors
     Mono.usingWhen(
@@ -35,6 +36,10 @@ public class TdsClientRandomSequential {
             p -> p.disposeLater().doOnSuccess(v -> System.out.println("\nTests complete. Connection pool closed."))
         )
         .doOnError(t -> System.err.println("\n❌ Test Suite Failed: " + t.getMessage()))
+        .doFinally(signalType -> {
+          long totalTime = System.currentTimeMillis() - startTime;
+          System.out.println("Total execution time: " + totalTime + " ms");
+        })
         .block();
   }
 
@@ -71,12 +76,12 @@ public class TdsClientRandomSequential {
 
                     String selectList = String.join(", ", selectedColumns);
 
-                    int maxPossibleRows = Math.min(maxId, random.nextInt(5) + 1);
-                    int numRows = random.nextInt(maxPossibleRows) + 1;
+                    // Changed to exactly 20 rows, or maxId if the table is smaller than 20
+                    int numRows = Math.min(maxId, 20);
 
                     List<Integer> possibleIds = IntStream.rangeClosed(1, maxId).boxed().collect(Collectors.toList());
                     Collections.shuffle(possibleIds);
-                    List<Integer> selectedIds = possibleIds.subList(0, Math.min(numRows, possibleIds.size()));
+                    List<Integer> selectedIds = possibleIds.subList(0, numRows);
 
                     String idList = selectedIds.stream()
                         .map(String::valueOf)
