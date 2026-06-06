@@ -5,6 +5,7 @@ import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.Result;
+import io.r2dbc.spi.Statement;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,9 +17,9 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class TdsClientRandomSequential {
+public class TdsClientRandomSequentialTest {
   public static void main(String[] args) throws Exception {
-    new TdsClientRandomSequential().run();
+    new TdsClientRandomSequentialTest().run();
   }
 
   private void run() {
@@ -58,7 +59,7 @@ public class TdsClientRandomSequential {
               System.out.println("Found max id = " + maxId);
               Random random = new Random();
 
-              return Flux.range(1, 60000)
+              return Flux.range(1, 6000)
                   .concatMap(i -> {
                     int numColumns = random.nextInt(allColumns.size()) + 1;
 
@@ -73,20 +74,18 @@ public class TdsClientRandomSequential {
                     Collections.shuffle(possibleIds);
                     List<Integer> selectedIds = possibleIds.subList(0, numRows);
 
-                    String idList = selectedIds.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining(", "));
+                    // Build the parameterized WHERE clause
+                    String whereClause;
+                    if (selectedIds.isEmpty()) {
+                      whereClause = "WHERE 1=0";
+                    } else {
+                      String markers = IntStream.range(0, selectedIds.size())
+                          .mapToObj(idx -> "@P" + idx)
+                          .collect(Collectors.joining(", "));
+                      whereClause = "WHERE id IN (" + markers + ")";
+                    }
 
-                    String whereClause = selectedIds.isEmpty() ? "WHERE 1=0" : "WHERE id IN (" + idList + ")";
-
-//                    String dynamicQuery = """
-//                          SET TEXTSIZE -1;
-//                          SELECT %s
-//                          FROM dbo.AllDataTypes
-//                          %s
-//                          ORDER BY id;
-//                          """.formatted(selectList, whereClause);
-                    String dynamicQuery = "SET TEXTSIZE -1;\nSELECT " + selectList +
+                    String dynamicQuery = "SELECT " + selectList +
                         "\nFROM dbo.AllDataTypes\n" + whereClause + "\nORDER BY id;";
 
                     if (i % 1000 == 0) {
@@ -95,9 +94,19 @@ public class TdsClientRandomSequential {
 
                     String stepName = "Random Query #" + i + " (" + numColumns + " cols, " + numRows + " rows)";
 
-                    return Mono.defer(() ->
-                        executeRandomQuery(stepName, connection.createStatement(dynamicQuery).execute(), selectedColumns)
-                    );
+                    return Mono.defer(() -> {
+                      Statement statement = connection.createStatement(dynamicQuery);
+
+                      // Bind each generated parameter if the list isn't empty
+                      if (!selectedIds.isEmpty()) {
+                        for (int j = 0; j < selectedIds.size(); j++) {
+                          // Standard R2DBC parameter binding format for SQL Server
+                          statement.bind("P" + j, selectedIds.get(j));
+                        }
+                      }
+
+                      return executeRandomQuery(stepName, statement.execute(), selectedColumns);
+                    });
                   })
                   .then();
             })
@@ -136,11 +145,10 @@ public class TdsClientRandomSequential {
     return Flux.from(resultPublisher)
         .flatMap(result -> result.map((row, meta) -> {
           // BARE METAL PARSING:
-          // Pull the data to ensure the driver decodes it, but do NOT build a string.
           for (int idx = 0; idx < columnOrder.size(); idx++) {
             row.get(idx, Object.class);
           }
-          return 1; // Return a dummy integer to avoid object allocation overhead
+          return 1;
         }))
         .doOnNext(item -> {})
         .doOnError(error -> System.err.println("[" + stepName + "] Error: " + error.getMessage()))
